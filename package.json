@@ -3,7 +3,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Turn a sprint's git history into a sprint review deck anyone can follow. AI writes the words, code checks every line against the real commits. CLI, GitHub Action and MCP server.",
   "license": "MIT",
   "author": "Guus Keunen",
