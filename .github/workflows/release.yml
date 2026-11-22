@@ -32,21 +32,22 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: write   # npm trusted publishing: signs in with a short-lived GitHub token, and adds provenance
+      id-token: write   # npm provenance
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
-          node-version: 24   # trusted publishing needs npm 11.5.1 or newer; Node 22 ships npm 10
+          node-version: 22
           registry-url: https://registry.npmjs.org
       - run: npm install --no-audit --no-fund
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      # No token: npm trusts this workflow (set up on npmjs.com under the package's trusted publishers).
-      - run: npm publish --access public
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Move the major version tag
         env:
           MAJOR: v${{ needs.release-please.outputs.major }}
