@@ -7,29 +7,21 @@ All notable changes are listed here, written per release from the commit message
 
 ### Added
 
-* **deck:** a Download button on decks opened from a website ([e426ce8](https://github.com/guuskeunen/sprint-review/commit/e426ce8b24987d5903ca695161f97b165fddeea6))
 * **deck:** a Download button on decks opened from a website ([eabe3e8](https://github.com/guuskeunen/sprint-review/commit/eabe3e856f1814a1a04842f91fbf26a60f4d8471))
 * **mcp:** tool titles, behavior hints and fuller descriptions ([5daca57](https://github.com/guuskeunen/sprint-review/commit/5daca57ad04e43e05cf33167e311ed8498f0a245))
-* **mcp:** tool titles, behavior hints and fuller descriptions; glama.json ([3790175](https://github.com/guuskeunen/sprint-review/commit/37901757fcfb080b77ce2ad210e1ca5af380c82b))
-* **plugin:** a skill-only plugin in plugin/ for Anthropic's plugin directory ([f4a189c](https://github.com/guuskeunen/sprint-review/commit/f4a189c54afc44c20bdc84a53ba738ce84da9094))
 * **plugin:** a skill-only plugin in plugin/ for Anthropic's plugin directory ([a2c0090](https://github.com/guuskeunen/sprint-review/commit/a2c00901dd6df1ab28cea80ddde67f7b2a737451))
 
 
 ### Fixed
 
-* **brand:** a website's own logo, not the first client logo on the page ([10e8eeb](https://github.com/guuskeunen/sprint-review/commit/10e8eebc23ef6a2cf51cfa0928524a06f38c2518))
 * **brand:** a website's own logo, not the first client logo on the page ([71e14d2](https://github.com/guuskeunen/sprint-review/commit/71e14d2ccb925c8e453389a465ed4eb8310460fb))
-* **writer:** a short sprint headline about one change, and je/jij in Dutch ([09cce75](https://github.com/guuskeunen/sprint-review/commit/09cce7567004f0310de7e1936ecec0e881c244c0))
 * **writer:** a short sprint headline about one change, and je/jij in Dutch ([6ada1a7](https://github.com/guuskeunen/sprint-review/commit/6ada1a7f197a74916566c230a9fc9c052218cfdc))
 
 
 ### Docs
 
-* one real slide with a screenshot in the README ([8abba23](https://github.com/guuskeunen/sprint-review/commit/8abba2315165066b53ee7cab33b5ecac440ac494))
 * one real slide with a screenshot in the README instead of four text slides ([ac6eb7b](https://github.com/guuskeunen/sprint-review/commit/ac6eb7b6c32013db4dcfd6ccc45c50f66bb3769e))
-* **plugin:** a privacy policy, linked from plugin.json ([7b68a20](https://github.com/guuskeunen/sprint-review/commit/7b68a20d4d9a3de2f87046d3369feb98c5d47311))
 * **plugin:** a privacy policy, linked from plugin.json ([5a9dc9a](https://github.com/guuskeunen/sprint-review/commit/5a9dc9a2eb04637035f262225b1a0d9283b40bf4))
-* **plugin:** what the plugin reads, sends and keeps ([30dca99](https://github.com/guuskeunen/sprint-review/commit/30dca99a051c6c579076015dfb002d691ba2ab19))
 * **plugin:** what the plugin reads, sends and keeps ([1410497](https://github.com/guuskeunen/sprint-review/commit/1410497598d8f73f1f55955f39396ad738597e21))
 
 ## [0.4.2](https://github.com/guuskeunen/sprint-review/compare/sprint-review-v0.4.1...sprint-review-v0.4.2) (2026-11-22)
@@ -37,7 +29,6 @@ All notable changes are listed here, written per release from the commit message
 
 ### Fixed
 
-* **doctor:** playwright-core with the installed Chrome counts as Playwright ([9f8124c](https://github.com/guuskeunen/sprint-review/commit/9f8124c7b9a1502874bad8933adb45f929de779f))
 * **doctor:** playwright-core with the installed Chrome counts as Playwright ([82fa04f](https://github.com/guuskeunen/sprint-review/commit/82fa04f9c930d0a57b91391979e3ac433e661e9f))
 
 ## [0.4.1](https://github.com/guuskeunen/sprint-review/compare/sprint-review-v0.4.0...sprint-review-v0.4.1) (2026-11-22)
@@ -49,17 +40,13 @@ All notable changes are listed here, written per release from the commit message
 * **deck:** two cards use the slide's width; a title with two messages gets a warning ([8c4e5cf](https://github.com/guuskeunen/sprint-review/commit/8c4e5cf27eae7ca87b87855320d4c99b921275ee))
 * **review:** a sprint past limits.commits says its first days are missing ([81db4c0](https://github.com/guuskeunen/sprint-review/commit/81db4c0946971ec13b580fd4fa8bd714d5bbb15e))
 * **writer:** a long sprint is read across all of it, and what's left out is one check ([9820335](https://github.com/guuskeunen/sprint-review/commit/9820335a0903b07ed211dd0514b7df17db791f77))
-* **writer:** read long sprints across all of their days; one check for what's left out ([7825401](https://github.com/guuskeunen/sprint-review/commit/78254017b9f1373a11b14cb05c7cfeb07da03d6a))
 
 
 ### Docs
 
 * a demo deck that shows every kind of slide, and a new animation for the README ([e50f98b](https://github.com/guuskeunen/sprint-review/commit/e50f98bbb6040db030fc6c4431b31f176c193427))
-* a demo deck that shows every kind of slide; strips are never cropped ([b27dd76](https://github.com/guuskeunen/sprint-review/commit/b27dd76d8f249f27cc4efcbe46eb421c6f898818))
-* link the Marketplace listing; remove the separate listing repo's files ([2c1d81a](https://github.com/guuskeunen/sprint-review/commit/2c1d81a935700ba30256d5197465222fd64ab715))
 * link the Marketplace listing; remove the separate listing repo's files ([d7c2015](https://github.com/guuskeunen/sprint-review/commit/d7c2015db27ca6103cfe337de89f6fe52910975a))
 * real decks from VS Code, Next.js, Supabase and Excalidraw, and what they found ([ac26a64](https://github.com/guuskeunen/sprint-review/commit/ac26a64d72d4c676e15858a9ef9a49b9b2482bed))
-* real decks from VS Code, Next.js, Supabase and Excalidraw; limits.commits 3,000 with a warning ([fc214eb](https://github.com/guuskeunen/sprint-review/commit/fc214eb7b9b6d33549b98640b1b9d83947cade99))
 * what the open-source runs changed: long sprints, the commit limit, shallow clones ([2fd8283](https://github.com/guuskeunen/sprint-review/commit/2fd8283c1959e8fbe61deb937e32528071e30b71))
 
 ## [0.4.0](https://github.com/guuskeunen/sprint-review/compare/sprint-review-v0.3.0...sprint-review-v0.4.0) (2026-11-22)
@@ -69,14 +56,11 @@ All notable changes are listed here, written per release from the commit message
 
 * component screenshots, embedded fonts, You asked, product cover and zoom ([336c2aa](https://github.com/guuskeunen/sprint-review/commit/336c2aa363f26a4bba8abe9012615c7e83857988))
 * **deck:** fitting close-ups, strips across the slide, a clean cover, and the editor after a review ([e01b488](https://github.com/guuskeunen/sprint-review/commit/e01b488cca4080a686b10f069a9f53604793a2d1))
-* **deck:** fitting close-ups, strips across the slide, a clean cover, the editor after a review ([2731f68](https://github.com/guuskeunen/sprint-review/commit/2731f68e303456347ca14b197f0724dccde856da))
-* **screens:** capture when a review is made, and a login that lasts ([2156ea0](https://github.com/guuskeunen/sprint-review/commit/2156ea058f84991d7025d1cb25f94d42d66b7852))
 * **screens:** take today's pictures when a review is made; a login that lasts ([80119e5](https://github.com/guuskeunen/sprint-review/commit/80119e5b0c44c144191f517a963a53892097512e))
 
 
 ### Fixed
 
-* **git:** a shallow clone that reaches back to before the sprint is fine ([ea9cc52](https://github.com/guuskeunen/sprint-review/commit/ea9cc52dcf9ed2b81752071193c2070c3db307be))
 * **git:** a shallow clone that reaches back to before the sprint is fine ([3fe7ebe](https://github.com/guuskeunen/sprint-review/commit/3fe7ebee51d36d5c20c31b4c9c7ba3c4d299f737))
 
 ## [0.3.0](https://github.com/guuskeunen/sprint-review/compare/sprint-review-v0.2.2...sprint-review-v0.3.0) (2026-11-22)
@@ -85,10 +69,8 @@ All notable changes are listed here, written per release from the commit message
 ### Added
 
 * **config:** the audience sets the deck's density; aliases for the presets ([4a913cf](https://github.com/guuskeunen/sprint-review/commit/4a913cf6f09afad3bae6255ab609b2fc67b00205))
-* **deck:** a deck that tells the sprint as a story, by presentation rules ([d420951](https://github.com/guuskeunen/sprint-review/commit/d420951e5538fed82dac0aa81caa8d5c50694b62))
 * **deck:** a deck that tells the sprint as a story, by presentation rules ([56c2dc9](https://github.com/guuskeunen/sprint-review/commit/56c2dc9d2059ba2244c9c94ed403763b89aa051d))
 * **deck:** frame what changed on the after picture; a motion budget ([d232c3b](https://github.com/guuskeunen/sprint-review/commit/d232c3b0ea9bf11ddc4b043485e43928786151c3))
-* **deck:** frame what changed, dark screenshots, trends, palette, last sprint, Now/Next roadmap ([94c4e1a](https://github.com/guuskeunen/sprint-review/commit/94c4e1afd36cb4372df9e34f401daa1e1172f8f1))
 * **deck:** last sprint we said; short video clips per screen ([fa0aacf](https://github.com/guuskeunen/sprint-review/commit/fa0aacf5137569c8e1dc7c2a332d6a64bd224533))
 * **deck:** numbers show their change and a trend line ([9c2d5df](https://github.com/guuskeunen/sprint-review/commit/9c2d5df0289076d7f9dda9186ce235922c1bccb4))
 * **deck:** the whole palette from the brand color, measured; type details ([129d363](https://github.com/guuskeunen/sprint-review/commit/129d363731eae28ac5b6dfbf23b8ad0f37a7f762))
@@ -111,7 +93,6 @@ All notable changes are listed here, written per release from the commit message
 ### Fixed
 
 * **security:** a git ref can no longer act as a git option; clear errors before any model call ([be3122a](https://github.com/guuskeunen/sprint-review/commit/be3122a4a7d0fefa5260eb1924767ce35329fbd4))
-* **security:** git option injection, script through review.json, key leaks, and hostile inputs ([3e56edb](https://github.com/guuskeunen/sprint-review/commit/3e56edb8359dab6dc921316e63836fb0bff88ee8))
 * **security:** keys stay on https and this machine; bounded downloads, parsing and unzipping; MCP stays in the project ([1d66f25](https://github.com/guuskeunen/sprint-review/commit/1d66f25ac755d7b837d66747c9e11db5c992922e))
 * **security:** no script through review.json, labels or Markdown; real hashes only ([657b362](https://github.com/guuskeunen/sprint-review/commit/657b362ad289a55b77c7c9b1b34f264d6aecf57f))
 
@@ -128,12 +109,10 @@ All notable changes are listed here, written per release from the commit message
 
 * Claude Opus and Sonnet 5.5 work again; strict tools; JSON mode when a model refuses tools ([3ac2059](https://github.com/guuskeunen/sprint-review/commit/3ac2059c49fc7948388a8a4db39b19555266f12b))
 * no empty decks from a malformed answer; more room for thinking models ([cad3314](https://github.com/guuskeunen/sprint-review/commit/cad33147bc6d7c4cabb2f8b8d107ba32729c0679))
-* the default Claude models work again; reliable tool calls across Claude, GPT and Gemini ([64adaa0](https://github.com/guuskeunen/sprint-review/commit/64adaa0e33238b6453fb5eb60181031e14e1537c))
 
 
 ### Docs
 
-* how to clear the image-size audit report that pptxgenjs brings ([09d6134](https://github.com/guuskeunen/sprint-review/commit/09d61346e8d7f9265b216f729acb4a7b225e8132))
 * how to clear the image-size audit report that pptxgenjs brings ([2444b01](https://github.com/guuskeunen/sprint-review/commit/2444b017024d19bf6fefae3cf3426a72179e0aa2))
 * verified models and benchmark results for Claude, GPT and Gemini ([426f270](https://github.com/guuskeunen/sprint-review/commit/426f27090074d1473d34e44254a99eab1cbc37e8))
 
