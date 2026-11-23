@@ -17,6 +17,7 @@
   <a href="https://www.npmjs.com/package/@guuskeunen/sprint-review"><img src="https://img.shields.io/npm/v/@guuskeunen/sprint-review?color=b8914a&labelColor=16161b&label=npm" alt="npm"></a>
   <a href="https://github.com/marketplace/actions/sprint-review-deck"><img src="https://img.shields.io/badge/GitHub%20Action-ready-b8914a?labelColor=16161b" alt="GitHub Action"></a>
   <a href="docs/integrations.md#claude-code-cursor-and-other-mcp-clients"><img src="https://img.shields.io/badge/MCP-server-b8914a?labelColor=16161b" alt="MCP server"></a>
+  <a href="https://mcpservers.org/servers/guuskeunen/sprint-review"><img src="https://mcpservers.org/badge.svg" alt="Listed on mcpservers.org" height="20"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-b8914a?labelColor=16161b" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A522-b8914a?labelColor=16161b" alt="Node 22 or newer">
 </p>

@@ -37,7 +37,7 @@ claude mcp add sprint-review -- npx -y @guuskeunen/sprint-review mcp
 }
 ```
 
-**As a bundle:** every [release](https://github.com/guuskeunen/sprint-review/releases/latest) has `sprint-review.mcpb` attached. Open it in Claude Desktop (or another client that installs MCP bundles) to install the server with a form for your API key. The bundle starts that release's npm package, so Node 22 or newer must be installed. The server is also in the [MCP registry](https://registry.modelcontextprotocol.io) as `io.github.guuskeunen/sprint-review`.
+**As a bundle:** every [release](https://github.com/guuskeunen/sprint-review/releases/latest) has `sprint-review.mcpb` attached. Open it in Claude Desktop (or another client that installs MCP bundles) to install the server with a form for your API key. The bundle starts that release's npm package, so Node 22 or newer must be installed. The server is also in the [MCP registry](https://registry.modelcontextprotocol.io) as `io.github.guuskeunen/sprint-review`, and listed on [mcpservers.org](https://mcpservers.org/servers/guuskeunen/sprint-review).
 
 Then ask: *"Make our sprint review for the last two weeks"*, or *"What would the sprint review read for v1.4.0 to v1.5.0?"*.
 
