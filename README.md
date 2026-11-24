@@ -29,7 +29,7 @@
 </p>
 
 <p align="center">
-  <a href="https://mcprush.com/to/sprint-review-mcp?ref=badge"><img src="https://mcprush.com/badge/sprint-review-mcp/card.svg" alt="Sprint Review MCP server" width="380"></a>
+  <a href="https://mcprush.com/to/sprint-review-mcp?ref=badge"><img width="380" height="200" src="https://mcprush.com/badge/sprint-review-mcp/card.svg" alt="Sprint Review MCP server" /></a>
 </p>
 
 <p align="center">
