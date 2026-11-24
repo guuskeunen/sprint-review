@@ -29,6 +29,10 @@
 </p>
 
 <p align="center">
+  <a href="https://mcprush.com/to/sprint-review-mcp?ref=badge"><img src="https://mcprush.com/badge/sprint-review-mcp/card.svg" alt="Sprint Review MCP server" width="380"></a>
+</p>
+
+<p align="center">
   <img src="https://raw.githubusercontent.com/guuskeunen/sprint-review/main/docs/assets/demo.gif" alt="A generated sprint review deck: the cover, the sprint headline, what users asked for and what was done, theme slides with close-ups of the app, before and after screenshots, the numbers and questions for the audience" width="860">
 </p>
 
