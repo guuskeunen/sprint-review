@@ -19,6 +19,7 @@
   <a href="https://github.com/guuskeunen/sprint-review/blob/main/docs/integrations.md#claude-code-cursor-and-other-mcp-clients"><img src="https://img.shields.io/badge/MCP-server-b8914a?labelColor=16161b" alt="MCP server"></a>
   <a href="https://mcpservers.org/servers/guuskeunen/sprint-review"><img src="https://mcpservers.org/badge.svg" alt="Listed on mcpservers.org" height="20"></a>
   <a href="https://mcprush.com/to/sprint-review-mcp?ref=badge"><img src="https://mcprush.com/badge/sprint-review-mcp/score.svg" alt="Sprint Review MCP on mcprush" height="20"></a>
+  <a href="https://m8ven.ai/mcp/guuskeunen-sprint-review-hchjcp?s=readme"><img src="https://m8ven.ai/badge/mcp/guuskeunen-sprint-review-hchjcp?v=fefaeb1550bf13e1dd22cdc3b9483ab5" alt="M8ven Score" height="20"></a>
   <a href="https://github.com/guuskeunen/sprint-review/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-b8914a?labelColor=16161b" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A522-b8914a?labelColor=16161b" alt="Node 22 or newer">
 </p>
