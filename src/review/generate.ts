@@ -54,10 +54,13 @@ export function onBranch(range: Range, config: Config, history: History): Range 
  */
 export function missedWork(range: Range, config: Config, history: History): string | null {
   if (range.kind !== 'dates' || range.at || config.sprint.branch) return null;
-  let most: { ref: string; n: number } | null = null;
+  // The branch that misses most; on a tie, the one with the most work of the sprint (develop ahead of main).
+  let most: { ref: string; n: number; all: number } | null = null;
   for (const ref of new Set([history.remoteDefault(), 'origin/develop', 'origin/development'])) {
     const n = ref ? history.missingFrom(range, ref) : null;
-    if (ref && n && (!most || n > most.n)) most = { ref, n };
+    if (!ref || !n) continue;
+    const all = history.countIn(range, ref);
+    if (!most || n > most.n || (n === most.n && all > most.all)) most = { ref, n, all };
   }
   return most ? `${most.n} commit${most.n === 1 ? '' : 's'} of this sprint on ${most.ref} ${most.n === 1 ? 'is' : 'are'} not in what is checked out. Pass --to ${most.ref}, or set sprint.branch in the config.` : null;
 }

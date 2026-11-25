@@ -122,6 +122,12 @@ export class History {
     return Number(this.git(args, true).trim()) || 0;
   }
 
+  /** How many commits of a date range a ref holds. */
+  countIn(range: Range, ref: string): number {
+    if (range.kind !== 'dates' || !this.resolve(ref)) return 0;
+    return Number(this.git(['rev-list', '--count', '--no-merges', `--since=${range.from} 00:00:00`, `--until=${range.until} 23:59:59`, '--end-of-options', safeRef(ref)], true).trim()) || 0;
+  }
+
   /** The branch a remote's HEAD points at (origin/main), null when there is no remote. */
   remoteDefault(remote = 'origin'): string | null {
     const ref = this.git(['symbolic-ref', '--quiet', '--short', `refs/remotes/${remote}/HEAD`], true).trim();

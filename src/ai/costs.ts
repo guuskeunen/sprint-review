@@ -124,6 +124,13 @@ export interface Run {
   cost: Cost;
 }
 
+/** What the last runs in the ledger cost, oldest first, at most five; empty without a ledger. */
+export function pastCosts(config: Config): number[] {
+  const file = resolve(config.root, config.output.dir, 'costs.csv');
+  if (!existsSync(file)) return [];
+  return readFileSync(file, 'utf8').trim().split('\n').slice(1).map((line) => line.slice(line.lastIndexOf(',') + 1)).filter((v) => v !== '').map(Number).slice(-5);
+}
+
 /** Adds a finished run to the ledger. */
 export function recordRun(config: Config, result: Run, date = new Date().toISOString().slice(0, 10)) {
   return recordCost(config, { date, from: result.review.from, until: result.review.until, provider: config.model.provider, models: result.models, input: result.usage.input, output: result.usage.output, usd: result.cost.usd });

@@ -16,7 +16,7 @@ import { capture, CaptureError } from './screens/capture.ts';
 import { postToSlack } from './surfaces/slack.ts';
 import { PptxError } from './deck/pptx.ts';
 import { withWebsiteBrand } from './brand/website.ts';
-import { costLine, dollars, priceOf, recordRun } from './ai/costs.ts';
+import { costLine, dollars, pastCosts, priceOf, recordRun } from './ai/costs.ts';
 import { fitLog, writerSystem } from './ai/prompt.ts';
 import { ICONS } from './deck/icons-data.ts';
 import { WriterError } from './ai/writer.ts';
@@ -204,9 +204,12 @@ function dryRun(config: Config, asked: Range): number {
   out(`${bold('Model')}     ${config.model.name} ${dim(`via ${config.model.provider}`)}${config.model.fallback ? dim(` (fallback ${config.model.fallback})`) : ''}`);
   out(`${bold('Estimate')}  about ${tokens.toLocaleString('en-US')} input tokens for the writer and the reader`);
   const price = priceOf(config.model, config.model.name, new Date().toISOString().slice(0, 10));
-  // Output is the guess: 3,000 to 15,000 tokens, most of it thinking on models that think.
-  if (price) out(`${bold('Cost')}      about ${dollars((tokens * price.input + 3000 * price.output) / 1e6)} to ${dollars((tokens * price.input + 15000 * price.output) / 1e6)} ${dim(price.source === 'config' ? '(model.price)' : '(list price)')}`);
+  // The writer and the reader both read the commits (and a revision reads the draft again), so the
+  // input counts about twice. Output is the guess: 8,000 to 30,000 tokens, most of it on a busy sprint.
+  if (price) out(`${bold('Cost')}      about ${dollars((2 * tokens * price.input + 8000 * price.output) / 1e6)} to ${dollars((2 * tokens * price.input + 30000 * price.output) / 1e6)} ${dim(price.source === 'config' ? '(model.price)' : '(list price)')}`);
   else out(`${bold('Cost')}      ${dim('unknown for this provider: set model.price to see it')}`);
+  const past = pastCosts(config);
+  if (past.length) out(`${bold('Last runs')} ${past.map((usd) => dollars(usd)).join(', ')} ${dim(`(${shown(resolve(config.root, config.output.dir, 'costs.csv'))})`)}`);
   out('');
   for (const cm of commits.slice(0, 40)) out(`  ${dim(cm.hash)} ${cm.subject}${cm.product ? '' : dim(' [no product code]')}`);
   if (commits.length > 40) out(dim(`  … and ${commits.length - 40} more`));
