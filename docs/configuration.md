@@ -1,6 +1,6 @@
 # Configuration reference
 
-sprint-review works without a config. A config file makes the deck fit your product, audience and brand.
+sprint-review works without a config. A config file makes the deck fit your product, audience and brand. It is found in the folder you run in or a folder above it, up to the root of the git repository, so a run from `apps/web` reads the project's config; `render` looks from the review's own folder.
 
 ## Where the config lives
 

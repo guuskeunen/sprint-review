@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { ConfigError, loadConfig, normalize, type Config } from './config.ts';
+import { ConfigError, findConfigFile, loadConfig, normalize, type Config } from './config.ts';
 import { generate, missedWork, NothingToReview, onBranch, rangeFor } from './review/generate.ts';
 import { GitError, History, type Range } from './git/history.ts';
 import { ModelError } from './ai/model.ts';
@@ -205,8 +205,10 @@ function dryRun(config: Config, asked: Range): number {
   out(`${bold('Estimate')}  about ${tokens.toLocaleString('en-US')} input tokens for the writer and the reader`);
   const price = priceOf(config.model, config.model.name, new Date().toISOString().slice(0, 10));
   // The writer and the reader both read the commits (and a revision reads the draft again), so the
-  // input counts about twice. Output is the guess: 8,000 to 30,000 tokens, most of it on a busy sprint.
-  if (price) out(`${bold('Cost')}      about ${dollars((2 * tokens * price.input + 8000 * price.output) / 1e6)} to ${dollars((2 * tokens * price.input + 30000 * price.output) / 1e6)} ${dim(price.source === 'config' ? '(model.price)' : '(list price)')}`);
+  // input counts about twice. Output grows with the sprint: about 600 tokens a product commit, at
+  // most 30,000 (a sprint of 42 product commits wrote 25,000), and a third of that at least.
+  const most = Math.min(30000, 4000 + 600 * commits.filter((x) => x.product).length);
+  if (price) out(`${bold('Cost')}      about ${dollars((2 * tokens * price.input + (most / 3) * price.output) / 1e6)} to ${dollars((2 * tokens * price.input + most * price.output) / 1e6)} ${dim(price.source === 'config' ? '(model.price)' : '(list price)')}`);
   else out(`${bold('Cost')}      ${dim('unknown for this provider: set model.price to see it')}`);
   const past = pastCosts(config);
   if (past.length) out(`${bold('Last runs')} ${past.map((usd) => dollars(usd)).join(', ')} ${dim(`(${shown(resolve(config.root, config.output.dir, 'costs.csv'))})`)}`);
@@ -233,7 +235,8 @@ async function rerender(file: string | undefined, configPath: string | undefined
     err(`${file}: ${(e as Error).message}`);
     return 2;
   }
-  const config = await withWebsiteBrand(configOrDefaults(configPath));
+  // The review's own project: its config is found from the review's folder, wherever render runs.
+  const config = await withWebsiteBrand(configOrDefaults(configPath, dirname(path)));
   const written = await writeOutputs(review, config, dirname(path), { pptx: pptx ? true : undefined });
   out(`${green('✓')} Rebuilt ${shown(written.deck)}${written.pptx ? ` and ${shown(written.pptx)}` : ''}`);
   return 0;
@@ -280,7 +283,7 @@ async function doctor(configPath: string | undefined): Promise<number> {
   let config: Config;
   try {
     config = configOrDefaults(configPath);
-    show(true, configPath || findConfig() ? `Config read from ${shown(config.root) || '.'}` : 'No config file: using defaults');
+    show(true, configPath || findConfigFile() ? `Config read from ${shown(config.root) || '.'}` : 'No config file: using defaults');
   } catch (e) {
     show(false, (e as Error).message);
     return 1;
@@ -314,13 +317,12 @@ function init(force: boolean, preset: string | undefined): number {
   return 0;
 }
 
-function findConfig(): string | null {
-  return ['sprint-review.config.yml', 'sprint-review.config.yaml', 'sprint-review.config.json'].find((f) => existsSync(f)) ?? null;
-}
-
 /** Works without a config: sensible defaults, the product named after the folder or package.json. */
-function configOrDefaults(path: string | undefined): Config {
-  if (path || findConfig()) return loadConfig(path ?? null);
+/** The config given, else the one found from `from` upward in the repository (the current folder, or a review's folder). */
+function configOrDefaults(path: string | undefined, from = process.cwd()): Config {
+  if (path) return loadConfig(path);
+  const found = findConfigFile(from);
+  if (found) return loadConfig(found);
   return normalize({ product: { name: guessName() } }, process.cwd());
 }
 
