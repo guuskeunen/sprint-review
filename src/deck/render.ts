@@ -47,30 +47,41 @@ export const VIDEO_DATA_URI = /^data:video\/(mp4|webm);base64,[A-Za-z0-9+/=]+$/;
 export const IMAGE_DATA_URI = /^data:image\/(png|jpeg|webp|gif|svg\+xml);base64,[A-Za-z0-9+/=]+$/;
 /**
  * A before or after picture in a box with the after picture's shape, so both show the same size
- * and a frame around the change sits exactly on it at any size. Phones keep their own shape.
+ * and a frame around the change sits exactly on it at any size. A phone shows one screen around
+ * the change; a full-page phone picture from an older review shows its top, without a frame.
  */
 function shot(uri: string, alt: string, s: Review['screens'][number], frame: boolean): string {
   const img = `<img src="${picture(uri)}" alt="${esc(alt)}">`;
-  const size = s.device === 'phone' ? null : imageSize(s.after);
-  if (!size) return img;
+  const size = imageSize(s.after);
+  if (!size || (s.device === 'phone' && size.h / size.w > PHONE_SCREEN * 1.05)) return img;
   const pct = (n: number) => `${Math.round(n * 1000) / 10}%`;
   const f = frame && s.focus ? `<i class="focus" style="left: ${pct(s.focus.x)}; top: ${pct(s.focus.y)}; width: ${pct(s.focus.w)}; height: ${pct(s.focus.h)}"></i>` : '';
   // Zooming in (one press of →) scales the picture around the change's center, enough to fill most of the box.
   const zs = zoomScale(s);
   // Scaled around the change's center, then moved toward the middle, but never so far that an edge of the box shows empty.
   const shift = (c: number, k: number) => Math.min(c * (k - 1), Math.max((1 - c) * (1 - k), 0.5 - c));
+  // A change wider than the zoomed view (a whole row on a phone) is shown from its start, where it begins.
+  const cx = s.focus && zs ? s.focus.x + Math.min(s.focus.w, 0.9 / zs) / 2 : 0;
   const zoom =
     frame && s.focus && zs
-      ? ` --zx: ${pct(s.focus.x + s.focus.w / 2)}; --zy: ${pct(s.focus.y + s.focus.h / 2)}; --zs: ${zs}; --tx: ${pct(shift(s.focus.x + s.focus.w / 2, zs))}; --ty: ${pct(shift(s.focus.y + s.focus.h / 2, zs))};`
+      ? ` --zx: ${pct(cx)}; --zy: ${pct(s.focus.y + s.focus.h / 2)}; --zs: ${zs}; --tx: ${pct(shift(cx, zs))}; --ty: ${pct(shift(s.focus.y + s.focus.h / 2, zs))};`
       : '';
   return `<span class="shot" style="--r: ${Math.round((size.w / size.h) * 1000) / 1000};${zoom}">${img}${f}</span>`;
 }
 /** How far to zoom into the change: enough for it to fill most of the picture, at most 2.5 times. Null when it would hardly grow. */
 function zoomScale(s: Review['screens'][number]): number | null {
-  if (!s.focus || s.device === 'phone') return null;
-  const scale = Math.min(2.5, 0.85 / Math.max(s.focus.w, s.focus.h));
+  if (!s.focus) return null;
+  const size = imageSize(s.after);
+  if (s.device === 'phone' && (!size || size.h / size.w > PHONE_SCREEN * 1.05)) return null;
+  // A phone is small on the slide: a change across the whole row still zooms, to the row's start.
+  const width = s.device === 'phone' ? Math.min(s.focus.w, PHONE_ZOOM_WIDTH) : s.focus.w;
+  const scale = Math.min(2.5, 0.85 / Math.max(width, s.focus.h));
   return scale >= 1.4 ? Math.round(scale * 100) / 100 : null;
 }
+/** A phone screen's height over its width. */
+const PHONE_SCREEN = 844 / 390;
+/** On a phone, the share of the screen's width a zoom keeps in view at least. */
+const PHONE_ZOOM_WIDTH = 0.4;
 const picture = (uri: unknown) => (typeof uri === 'string' && IMAGE_DATA_URI.test(uri) ? uri : '');
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');

@@ -138,6 +138,9 @@ export function screens(config: ScreenshotConfig, root: string, history: History
       for (const id of byScreenOrder(changedIds)) {
         const [key = '', dev = 'desktop'] = id.split('|');
         const device = dev as Device;
+        // The same change twice is one slide: a phone picture only when the desktop one of that screen did not change.
+        // Desktop comes first in the screen order, and shows the change larger.
+        if (device === 'phone' && out.some((s) => s.key === key && s.device === 'desktop')) continue;
         // A picture without an earlier version may be a new screen, or a screen that only got its first picture now: no slide.
         const before = startOf(id)?.() ?? (darkPair(id) ? null : firstInRange(id));
         const after = endOf(id)?.();

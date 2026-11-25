@@ -134,7 +134,7 @@ When a page sends capture to a login page (`/login`, `/signin`, `/auth`), it sto
 
 The screen key turns into a readable name ("customer-page" → "Customer page") unless you set one in `names`. The order of `names` is also the order of the slides.
 
-Phone pictures are shown upright, in a phone frame.
+Phone pictures are shown upright, in a phone frame: one phone screen around the change, with the change framed, and → zooms in on where it starts. A phone picture gets a before and after slide only when the desktop picture of the same screen did not change too; otherwise the desktop slide shows the change, larger.
 
 ## Short video clips
 

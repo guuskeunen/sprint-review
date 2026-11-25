@@ -106,6 +106,37 @@ test('a small change gets a zoom step on its before and after slide; a wide one 
   assert.doesNotMatch(html, /data-ref="screen-1" data-steps/);
 });
 
+/** The start of a PNG of this size: enough for the deck to read its shape. */
+function pngOfSize(w: number, h: number): string {
+  const b = Buffer.alloc(33);
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]).copy(b);
+  b.writeUInt32BE(w, 16);
+  b.writeUInt32BE(h, 20);
+  return `data:image/png;base64,${b.toString('base64')}`;
+}
+
+test('a phone screen gets the frame, and a change across its whole row still zooms, from where the row starts', async () => {
+  const { renderDeck } = await import('../../src/deck/render.ts');
+  const r = sample();
+  const phone = pngOfSize(390, 844);
+  r.screens[0] = { ...r.screens[0]!, device: 'phone', before: phone, after: phone, focus: { x: 0.05, y: 0.23, w: 0.78, h: 0.06 } };
+  const html = renderDeck(r);
+  assert.match(html, /data-ref="screen-0" data-steps="1"/);
+  assert.match(html, /<i class="focus" style="left: 5%; top: 23%; width: 78%; height: 6%">/);
+  // Zoomed 2.13 times around the row's first 42%, not its middle, so its start stays in view.
+  assert.match(html, /--zx: 26.1%; --zy: 26%; --zs: 2.13;/);
+});
+
+test('a full-page phone picture from an older review shows as before, without a frame or zoom', async () => {
+  const { renderDeck } = await import('../../src/deck/render.ts');
+  const r = sample();
+  const tall = pngOfSize(390, 2400);
+  r.screens[0] = { ...r.screens[0]!, device: 'phone', before: tall, after: tall, focus: { x: 0.05, y: 0.23, w: 0.78, h: 0.06 } };
+  const html = renderDeck(r);
+  assert.doesNotMatch(html, /data-ref="screen-0" data-steps/);
+  assert.doesNotMatch(html, /data-ref="screen-0"[\s\S]*?class="focus"[\s\S]*?data-ref="screen-1"/);
+});
+
 test('a very wide picture (a strip of cards) gets the width of the slide; a layout picked by hand wins', async () => {
   const sharp = (await import('sharp')).default;
   const strip = `data:image/png;base64,${(await sharp({ create: { width: 1200, height: 100, channels: 3, background: '#eee' } }).png().toBuffer()).toString('base64')}`;

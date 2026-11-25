@@ -69,7 +69,7 @@
 
   /* Screens on the black: a hairline instead of a shadow, and a white screen dimmed a little so it doesn't glare */
   html[data-theme="dark"] :is(.theme .screen img, figure img) { border: 1px solid rgb(244 239 230 / .14); box-shadow: 0 30px 120px -60px var(--accent-glow); filter: brightness(.9); }
-  html[data-theme="dark"] .theme .screen.phone img, html[data-theme="dark"] .compare.phone figure img { border-color: #1b1b21; outline: 1px solid rgb(244 239 230 / .14); }
+  html[data-theme="dark"] .theme .screen.phone img, html[data-theme="dark"] .compare.phone figure img, html[data-theme="dark"] .compare.phone .shot { border-color: #1b1b21; outline: 1px solid rgb(244 239 230 / .14); }
   html[data-theme="dark"] figure.after figcaption { color: var(--accent); }
 
   /* Roadmap */
