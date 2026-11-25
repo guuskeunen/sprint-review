@@ -315,7 +315,7 @@ export function writerTool(c: Config, changedScreens: string[], availableScreens
         summary_notes: { type: 'string', description: 'Speaker note for the headline slide: two or three sentences to open with, sixty words at most.' },
         under_the_hood: {
           type: 'array',
-          description: 'Work without a visible effect, in plain words: five short points at most, one change per point. Merge points about the same change, but never two changes in one point joined with a comma or "and": "The feedback button sends a screenshot", not "The feedback button sends a screenshot, the market page links to Notion". Empty when there is none.',
+          description: 'Work without a visible effect, in plain words: five short points at most, one change per point. Merge points about the same change, but never two changes in one point joined with a comma or "and": "The feedback button sends a screenshot", not "The feedback button sends a screenshot, the market page links to Notion". Work on the team\'s own tooling and process (releases, CI, dependency updates, how this review is made) gets one point at most, said as what it gives the audience ("New versions arrive every week, tested automatically"), never in the team\'s own terms. Empty when there is none.',
           items: { ...point, properties: { ...point.properties, kind: { type: 'string', enum: [...HOOD_KINDS], description: 'What kind of work it is.' } }, required: ['text', 'commits', 'kind'] },
         },
         questions: {

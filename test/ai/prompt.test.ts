@@ -64,6 +64,7 @@ test('under the hood is one change per point, and the questions are ones the aud
   const props = tool.input_schema.properties as unknown as Record<string, { description: string }>;
   assert.match(props.under_the_hood!.description, /one change per point/);
   assert.match(props.under_the_hood!.description, /never two changes in one point/);
+  assert.match(props.under_the_hood!.description, /own tooling and process .* gets one point at most, said as what it gives the audience/);
   assert.match(props.questions!.description, /from their own work/);
   assert.match(props.questions!.description, /never about how it is built/);
   const system = writerSystem(normalize({}, '/tmp'));
