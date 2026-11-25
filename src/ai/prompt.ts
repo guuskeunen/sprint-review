@@ -9,7 +9,7 @@ import { humanize } from '../screens/screenshots.ts';
 export const POINT_WORDS = 12;
 /** Words per slide title (a theme's headline, the sprint headline, a before and after caption). */
 export const HEADLINE_WORDS = 12;
-/** Words in the sprint headline: one change, said the way you'd tell a colleague. */
+/** Words in the sprint headline: what the sprint changed, said the way you'd tell a colleague. */
 export const SPRINT_HEADLINE_WORDS = 10;
 const COUNTS = ['', 'one', 'two', 'three', 'four'];
 /** "two or three" for standard: the points per theme the prompt asks for. */
@@ -136,7 +136,7 @@ export function writerSystem(c: Config): string {
     `Group the changes into themes the way a user of the product experiences them. For each theme, pick the icon that fits best, a different one per theme, the most precise one. If none fits, pick other. The icons, with what they suit: ${iconList()}.${areas(c)}`,
     `Name each theme the way a user would call it: the screen, task or part of ${c.product.name} it is about, in one to three words, never the name of a module, service, file or technique ("Customer page", not "API structure"; "Repair tickets", not "OCR"). One topic per theme: two topics joined with "&" are two themes.`,
     `Each theme slide has one message, and its title says it: one full sentence of at most ${HEADLINE_WORDS} words with what a user can do, see or no longer has to do now, so that someone outside the team gets it in three seconds. A statement with a subject, never a command or a label: "The front desk reads repair tickets from a photo", not "Read repair tickets from a photo" and not "Ticket reading". Then ${pointCount(c)} short points that back it up, without repeating the title. Go through every commit without [no product code]: whatever a user can do now belongs in a theme.`,
-    `The sprint headline is the one change that matters most to a user this sprint, said the way you would tell a colleague in the hallway: one short sentence with a subject, at most ${SPRINT_HEADLINE_WORDS} words, in plain words. Say what changed for the user, not how it works or where the data comes from. One change, never two joined with "and", and never a list of the themes: "The front desk sees a whole customer on one page", not "Customer page, ticket scanning and planner updates", and not "Photo uploads now give the front desk repair tickets and customer matches".`,
+    `The sprint headline says what the sprint as a whole changed for a user, said the way you would tell a colleague in the hallway: the thread that runs through most themes, in one short sentence with a subject, at most ${SPRINT_HEADLINE_WORDS} words, in plain words. Say what changed for the user, not how it works or where the data comes from. It is never a single commit or one theme when the sprint has several (the theme slides tell those), and never a list of the themes (their names show right under it): "The front desk handles a customer without leaving the counter", not "Repair tickets are read from a photo" (one change of several), and not "Customer page, ticket scanning and planner updates". When one change really dwarfs the rest, it may carry the headline.`,
     c.goal ? `The sprint goal was: ${c.goal}. Where the work served it, put that first.` : '',
     `What a theme is:
 - Something a user sees or notices in the product. A new feature goes before a fix, even if its commit message is short.
@@ -280,7 +280,7 @@ export function writerTool(c: Config, changedScreens: string[], availableScreens
       properties: {
         headline: {
           ...point,
-          description: `The sprint in one short sentence with a subject: the one change that matters most to a user, in plain words. At most ${SPRINT_HEADLINE_WORDS} words, one change, never a list of the themes.`,
+          description: `The sprint in one short sentence with a subject: what the sprint as a whole changed for a user, in plain words. At most ${SPRINT_HEADLINE_WORDS} words, never a single commit when there are several themes, never a list of the themes.`,
           properties: { ...point.properties, text: { type: 'string', description: `At most ${SPRINT_HEADLINE_WORDS} words.` } },
         },
         themes: {
