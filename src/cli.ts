@@ -4,7 +4,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:pat
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { ConfigError, loadConfig, normalize, type Config } from './config.ts';
-import { generate, missedWork, NothingToReview, onBranch, sprintRange } from './review/generate.ts';
+import { generate, missedWork, NothingToReview, onBranch, rangeFor } from './review/generate.ts';
 import { GitError, History, type Range } from './git/history.ts';
 import { ModelError } from './ai/model.ts';
 import { clientFor } from './ai/providers.ts';
@@ -222,6 +222,10 @@ async function rerender(file: string | undefined, configPath: string | undefined
     return 2;
   }
   const path = resolve(file);
+  if (!existsSync(path)) {
+    err(`No file at ${file}. Give the review.json in a review's folder, such as sprint-reviews/2026-11-10/review.json.`);
+    return 2;
+  }
   let review: Review;
   try {
     review = validReview(JSON.parse(readFileSync(path, 'utf8')));
@@ -329,15 +333,11 @@ function guessName(): string {
 }
 
 function rangeFrom(flags: Flags, config: Config): Range {
-  const date = /^\d{4}-\d{2}-\d{2}$/;
-  if (flags.from) return { kind: 'refs', from: flags.from, to: flags.to ?? 'HEAD' };
-  for (const [k, v] of [['since', flags.since], ['until', flags.until]] as const) {
-    if (v && !date.test(v)) throw new ConfigError(`--${k} must be a date like 2026-11-10.`);
+  try {
+    return rangeFor(flags, config.sprint.days, (option) => `--${option}`);
+  } catch (e) {
+    throw new ConfigError((e as Error).message);
   }
-  // With dates, --to is the branch the days are counted on.
-  const at = flags.to ? { at: flags.to } : {};
-  if (flags.since) return { kind: 'dates', from: flags.since, until: flags.until ?? new Date().toISOString().slice(0, 10), ...at };
-  return { ...sprintRange(config.sprint.days, flags.until), ...at };
 }
 
 function out(s: string): void {

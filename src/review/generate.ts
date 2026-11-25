@@ -41,6 +41,31 @@ export interface Generated {
   models: string[];
 }
 
+/**
+ * The range a run asked for, the same for the CLI and the MCP server: refs (from, to) or days
+ * (since, until, with to as the branch they are counted on), checked so a wrong date never reads
+ * a range git made up. `name` spells an option the way the caller does (--since or since).
+ */
+export function rangeFor(input: { since?: string; until?: string; from?: string; to?: string }, days: number, name: (option: string) => string = (o) => o): Range {
+  const { since, until, from, to } = input;
+  if (from && (since || until)) throw new Error(`Use ${name('from')} or dates (${name('since')}, ${name('until')}), not both.`);
+  if (from) return { kind: 'refs', from, to: to ?? 'HEAD' };
+  for (const [option, value] of [['since', since], ['until', until]] as const) {
+    if (value && !isDay(value)) throw new Error(`${name(option)} must be a real date like 2026-11-10, not ${value}.`);
+  }
+  const at = to ? { at: to } : {};
+  const range = since ? { kind: 'dates' as const, from: since, until: until ?? today(), ...at } : { ...sprintRange(days, until), ...at };
+  if (range.from > range.until) throw new Error(`${name('since')} (${range.from}) is after ${until ? name('until') : 'today'} (${range.until}).`);
+  return range;
+}
+
+/** A calendar day written as YYYY-MM-DD that exists: not 2026-13-40 or 2026-02-30. */
+function isDay(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+}
+
 /** A date range read on the configured branch (its origin/ copy when fetched), unless the range names its own. */
 export function onBranch(range: Range, config: Config, history: History): Range {
   if (range.kind !== 'dates' || range.at || !config.sprint.branch) return range;
@@ -66,7 +91,7 @@ export function missedWork(range: Range, config: Config, history: History): stri
 }
 
 /** The sprint that ends on a day (default today): `days` days, both ends included. */
-export function sprintRange(days: number, until = today()): Range {
+export function sprintRange(days: number, until = today()): Extract<Range, { kind: 'dates' }> {
   const end = new Date(`${until}T00:00:00Z`);
   const start = new Date(end.getTime() - (days - 1) * 86_400_000);
   return { kind: 'dates', from: iso(start), until: iso(end) };

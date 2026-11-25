@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { loadConfig, normalize, type Config } from '../config.ts';
 import { withWebsiteBrand } from '../brand/website.ts';
 import { costLine, recordRun } from '../ai/costs.ts';
-import { generate, missedWork, onBranch, sprintRange } from '../review/generate.ts';
+import { generate, missedWork, onBranch, rangeFor } from '../review/generate.ts';
 import { History, type Range } from '../git/history.ts';
 import { clientFor } from '../ai/providers.ts';
 import { commitLog } from '../ai/prompt.ts';
@@ -83,12 +83,7 @@ function configIn(dir: string): Config {
 
 function rangeOf(a: Args, config: Config): Range {
   const s = (k: string) => (typeof a[k] === 'string' && a[k] ? (a[k] as string) : undefined);
-  if (s('from')) return { kind: 'refs', from: s('from')!, to: s('to') ?? 'HEAD' };
-  for (const k of ['since', 'until']) if (s(k) && !/^\d{4}-\d{2}-\d{2}$/.test(s(k)!)) throw new Error(`${k} must be a date like 2026-11-10.`);
-  // With dates, to is the branch the days are counted on.
-  const at = s('to') ? { at: s('to')! } : {};
-  if (s('since')) return { kind: 'dates', from: s('since')!, until: s('until') ?? new Date().toISOString().slice(0, 10), ...at };
-  return { ...sprintRange(config.sprint.days, s('until')), ...at };
+  return rangeFor({ since: s('since'), until: s('until'), from: s('from'), to: s('to') }, config.sprint.days);
 }
 
 /** The folder, when it is a project: it has a sprint-review config or is a git repository. */
