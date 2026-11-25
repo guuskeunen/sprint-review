@@ -6,7 +6,7 @@ import { palette } from './colors.ts';
 import { themeIcon, valueIcon } from './icons.ts';
 import { imageSize } from './images.ts';
 import { change, trendPoints } from './numbers.ts';
-import { coverPicture, isWide, numbers, planDeck } from './plan.ts';
+import { coverPicture, isWide, numbers, planDeck, roadmapMoves } from './plan.ts';
 import type { DeckConfig } from '../config.ts';
 import { fontFaceCss, type FontFace } from '../brand/fonts.ts';
 type PlannedSlide = ReturnType<typeof planDeck>[number];
@@ -226,11 +226,24 @@ export function renderDeck(review: Review, options: RenderOptions = {}): string 
 </section>`;
         }
         const reached = review.milestones.filter((m) => m.done).length;
+        const count = fill(t.roadmapReached, { n: reached, total: review.milestones.length });
+        const { moved, outside } = roadmapMoves(review);
+        // Themes outside the roadmap are named too, so a sprint that moved no milestone still shows its work.
+        const outsideLine = outside.length ? `\n  <p class="outside rise"${rise(moved.length + 2)}><span class="tag">${esc(t.roadmapOutside)}</span><span>${esc(outside.join(' · '))}</span></p>` : '';
+        if (moved.length) {
+          // What the sprint moved: each milestone with the themes that moved it, then how far the roadmap is.
+          return `<section class="slide" data-ref="roadmap">
+  ${head(esc(t.roadmapLabel), t.roadmapMoved)}
+  <ul class="moved">${moved.map((x, i) => `\n    <li class="rise ${x.milestone.done ? 'done' : ''}"${rise(i + 2)}><span>${esc(x.milestone.text)}</span><small>${esc(x.themes.join(' · '))}</small></li>`).join('')}
+  </ul>${outsideLine}
+  <p class="reached rise"${rise(moved.length + 3)}>${esc(count)}</p>
+</section>`;
+        }
         const next = p.milestones.findIndex((m) => !m.done);
         return `<section class="slide" data-ref="roadmap">
-  ${head(esc(t.roadmapLabel), fill(t.roadmapReached, { n: reached, total: review.milestones.length }))}
+  ${head(esc(t.roadmapLabel), count)}
   <ol class="timeline" style="--n: ${p.milestones.length}">${p.milestones.map((m, i) => `\n    <li class="rise ${m.done ? 'done' : i === next ? 'next' : ''}"${rise(i + 2)}>${i === next ? `<b>${esc(t.roadmapNext)}</b>` : ''}<span>${esc(m.text)}</span></li>`).join('')}
-  </ol>
+  </ol>${outsideLine}
 </section>`;
       }
       case 'usage': {

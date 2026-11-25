@@ -170,3 +170,38 @@ test('a strip never goes on the cover, and keeps its points right under it', asy
   r.screens = [];
   assert.equal(coverPicture(r), null, 'only strips: the cover keeps its rings');
 });
+
+test('the roadmap slide shows what the sprint moved: each milestone with its themes, then the rest outside the roadmap', async () => {
+  const { renderDeck } = await import('../../src/deck/render.ts');
+  const { renderMarkdown } = await import('../../src/deck/markdown.ts');
+  const r = sample();
+  r.themes = r.themes.map((th, i) => ({ ...th, milestone: i === 0 || i === 3 ? 4 : i === 1 ? 2 : null }));
+  const html = renderDeck(r);
+  const slide = html.slice(html.indexOf('data-ref="roadmap"'));
+  assert.match(slide, /<h2[^>]*>What this sprint moved<\/h2>/);
+  assert.match(slide, /<li class="rise done"[^>]*><span>One customer page for online store, register and workshop<\/span><small>Repair ticket scanning<\/small><\/li>/);
+  assert.match(slide, /<li class="rise "[^>]*><span>Text message when the bike is ready<\/span><small>Customer profile · Duplicate customers<\/small><\/li>/);
+  assert.match(slide, /Outside the roadmap<\/span><span>Workshop planner · Look and feel<\/span>/);
+  assert.match(slide, /4 of 6 milestones reached/);
+  const text = renderMarkdown(r);
+  assert.match(text, /What this sprint moved:\n\n- One customer page for online store, register and workshop: Repair ticket scanning\n- Text message when the bike is ready: Customer profile, Duplicate customers/);
+  assert.match(text, /Outside the roadmap: Workshop planner, Look and feel/);
+});
+
+test('a sprint that moved no milestone keeps the timeline, and names its work outside the roadmap', async () => {
+  const { renderDeck } = await import('../../src/deck/render.ts');
+  const r = sample();
+  r.themes = r.themes.map((th) => ({ ...th, milestone: null }));
+  const html = renderDeck(r);
+  const slide = html.slice(html.indexOf('data-ref="roadmap"'));
+  assert.match(slide, /<ol class="timeline"/);
+  assert.match(slide, /Outside the roadmap<\/span><span>Customer profile · Repair ticket scanning/);
+});
+
+test('an older review without milestones on its themes shows the roadmap as before', async () => {
+  const { renderDeck } = await import('../../src/deck/render.ts');
+  const html = renderDeck(sample());
+  const slide = html.slice(html.indexOf('data-ref="roadmap"'));
+  assert.match(slide, /<ol class="timeline"/);
+  assert.doesNotMatch(slide.slice(0, slide.indexOf('</section>')), /Outside the roadmap/);
+});

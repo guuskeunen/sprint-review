@@ -204,7 +204,7 @@ export function readerTool() {
   };
 }
 
-export function writerTool(c: Config, changedScreens: string[], availableScreens: string[], roadmapItems = 0, requests = 0) {
+export function writerTool(c: Config, changedScreens: string[], availableScreens: string[], roadmapItems = 0, requests = 0, milestones = 0) {
   const closeUps = closeUpScreens(c).filter((s) => availableScreens.includes(s));
   const point = {
     type: 'object',
@@ -304,8 +304,11 @@ export function writerTool(c: Config, changedScreens: string[], availableScreens
               effect: { type: 'string', description: `The slide title: one full sentence with a subject, saying what a user can do, see or no longer has to do now: one message, never two joined with a semicolon. Not a command. At most ${HEADLINE_WORDS} words.` },
               points: { type: 'array', description: `${pointCount(c)[0]!.toUpperCase()}${pointCount(c).slice(1)} points that back up the title without repeating it.`, items: point },
               notes: { type: 'string', description: 'A note for the presenter: what to show in the demo and how to explain it to this audience, two or three sentences, sixty words at most.' },
+              ...(milestones
+                ? { milestone: { type: 'integer', description: 'The number of the milestone this theme moves forward, from the list of milestones, or -1 when it is outside the roadmap. Only when the change really is part of that milestone: a theme that merely touches the same area is -1. A theme that improves a milestone already reached may point at it.' } }
+                : {}),
             },
-            required: ['title', 'icon', 'screen', 'value', 'effect', 'points', 'notes'],
+            required: ['title', 'icon', 'screen', 'value', 'effect', 'points', 'notes', ...(milestones ? ['milestone'] : [])],
             additionalProperties: false,
           },
         },

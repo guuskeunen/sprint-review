@@ -32,29 +32,30 @@ export interface WriteResult {
  * touched no product code cannot carry a theme, a text fits a slide and has no exclamation mark or
  * emoji. Ticket numbers and hashes come out. Everything corrected, moved or dropped is logged.
  */
-export async function write(model: ModelClient, config: Config, commits: Commit[], changedScreens: string[], availableScreens: string[], roadmapItems: string[] = [], requests: string[] = []): Promise<WriteResult> {
+export async function write(model: ModelClient, config: Config, commits: Commit[], changedScreens: string[], availableScreens: string[], roadmapItems: string[] = [], requests: string[] = [], milestones: string[] = []): Promise<WriteResult> {
   const { log, skipped } = fitLog(commits, config.model.maxInputChars);
   const screens = changedScreens.length ? `The screenshots of these screens changed during the sprint: ${changedScreens.join(', ')}. ` : '';
   const ask = () =>
     model.ask({
       system: writerSystem(config),
-      tool: writerTool(config, changedScreens, availableScreens, roadmapItems.length, requests.length),
+      tool: writerTool(config, changedScreens, availableScreens, roadmapItems.length, requests.length, milestones.length),
       maxTokens: config.model.maxTokens,
       messages: [
         untrusted(log, `the commits of the sprint: hash, date, subject, files and description, newest first${skipped.length ? '. The sprint is long: some commits show only their first line' : ''}`, config.model.maxInputChars),
         ...(roadmapItems.length ? [untrusted(roadmapItems.map((r, i) => `${i}. ${r}`).join('\n'), "the team's roadmap: what they work on now and next, numbered")] : []),
+      ...(milestones.length ? [untrusted(milestones.map((m, i) => `${i}. ${m}`).join('\n'), "the team's milestones, numbered; [x] is reached, [ ] is planned")] : []),
         ...(requests.length ? [untrusted(requests.map((r, i) => `${i}. ${r}`).join('\n'), 'requests from users and stakeholders, numbered')] : []),
         `${screens}Now create the content of the presentation.`,
       ],
     });
   let draft = await ask();
-  let written = parse(draft.toolInput, commits, changedScreens, availableScreens, config, roadmapItems.length, requests.length);
+  let written = parse(draft.toolInput, commits, changedScreens, availableScreens, config, roadmapItems.length, requests.length, milestones.length);
   let retry = { input: 0, output: 0 };
   // The product changed but no theme came through (a malformed answer): ask once more rather than ship an empty deck.
   if (written.themes.length === 0 && commits.some((c) => c.product)) {
     retry = draft.usage;
     draft = await ask();
-    written = parse(draft.toolInput, commits, changedScreens, availableScreens, config, roadmapItems.length, requests.length);
+    written = parse(draft.toolInput, commits, changedScreens, availableScreens, config, roadmapItems.length, requests.length, milestones.length);
     if (written.themes.length === 0) written.checks.push({ kind: 'warning', text: 'No themes', reason: 'The model gave no usable themes twice although the product changed. Run it again, or check the commits in this range.' });
   }
   if (written.themes.length === 0 && written.headline === null) {
@@ -189,7 +190,7 @@ async function complaints(model: ModelClient, config: Config, written: WrittenRe
 }
 
 /** The answer of the writer, with only what holds up. Exported for tests. */
-export function parse(input: Record<string, unknown> | null, commits: Commit[], changedScreens: string[], availableScreens: string[], config: Config, roadmapItems = 0, requests = 0): WrittenReview {
+export function parse(input: Record<string, unknown> | null, commits: Commit[], changedScreens: string[], availableScreens: string[], config: Config, roadmapItems = 0, requests = 0, milestones = 0): WrittenReview {
   const checks: Check[] = [];
   const moved: HoodItem[] = [];
   const replace = config.replace;
@@ -235,6 +236,7 @@ export function parse(input: Record<string, unknown> | null, commits: Commit[], 
       effect,
       points,
       notes: optional(t.notes, NOTES_WORDS_MAX, checks, replace),
+      ...(milestones ? { milestone: milestoneOf(t.milestone, milestones, title, checks) } : {}),
     });
   }
 
@@ -404,4 +406,12 @@ function str(v: unknown): string | null {
 }
 function escape(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** The milestone a theme moves: a real one of the list, or null (-1, or a number that is no milestone, which is reported). */
+function milestoneOf(v: unknown, milestones: number, title: string, checks: Check[]): number | null {
+  const n = typeof v === 'number' ? v : Number(v);
+  if (Number.isInteger(n) && n >= 0 && n < milestones) return n;
+  if (n !== -1) checks.push({ kind: 'warning', text: title, reason: 'This theme pointed at a milestone that is not on the roadmap: shown as outside the roadmap.' });
+  return null;
 }

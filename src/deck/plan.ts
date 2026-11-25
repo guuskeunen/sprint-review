@@ -108,3 +108,15 @@ function window(milestones: Milestone[]): Milestone[] {
   const start = Math.max(0, Math.min(at - 3, milestones.length - MAX_MILESTONES));
   return milestones.slice(start, start + MAX_MILESTONES);
 }
+
+/**
+ * What the sprint did on the roadmap: each milestone a theme moved, with those themes, in roadmap
+ * order, and the themes outside the roadmap. A theme that was never asked (an older review) counts as neither.
+ */
+export function roadmapMoves(review: Review): { moved: { milestone: Milestone; themes: string[] }[]; outside: string[] } {
+  const moved = review.milestones
+    .map((milestone, i) => ({ milestone, themes: review.themes.filter((th) => th.milestone === i).map((th) => th.title) }))
+    .filter((x) => x.themes.length);
+  const outside = review.themes.filter((th) => th.milestone === null).map((th) => th.title);
+  return { moved, outside };
+}
