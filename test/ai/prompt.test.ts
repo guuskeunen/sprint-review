@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fitLog, commitLog, writerSystem } from '../../src/ai/prompt.ts';
+import { fitLog, commitLog, writerSystem, writerTool } from '../../src/ai/prompt.ts';
 import { normalize } from '../../src/config.ts';
 import { unread } from '../../src/ai/writer.ts';
 import type { Commit } from '../../src/types.ts';
@@ -57,4 +57,15 @@ test('the sprint headline sums up the whole sprint for a user, short, not one co
   assert.match(rule, /never a single commit or one theme/);
   assert.match(rule, /never a list of the themes/);
   assert.match(rule, /not how it works or where the data comes from/);
+});
+
+test('under the hood is one change per point, and the questions are ones the audience answers from its own work', () => {
+  const tool = writerTool(normalize({}, '/tmp'), [], []);
+  const props = tool.input_schema.properties as unknown as Record<string, { description: string }>;
+  assert.match(props.under_the_hood!.description, /one change per point/);
+  assert.match(props.under_the_hood!.description, /never two changes in one point/);
+  assert.match(props.questions!.description, /from their own work/);
+  assert.match(props.questions!.description, /never about how it is built/);
+  const system = writerSystem(normalize({}, '/tmp'));
+  assert.match(system, /answer from their own work/);
 });
