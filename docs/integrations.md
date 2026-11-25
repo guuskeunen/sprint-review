@@ -11,7 +11,9 @@ The skill and the MCP server in one install:
 /plugin install sprint-review@sprint-review
 ```
 
-Then ask Claude Code for a sprint review, or type `/sprint-review`. The plugin runs `npx @guuskeunen/sprint-review@0 mcp`, so it picks up new releases by itself. Set your API key in the environment Claude Code starts from.
+Then ask Claude Code for a sprint review, or type `/sprint-review`. The plugin runs `npx @guuskeunen/sprint-review@0 mcp`, so it picks up new releases by itself. When you enable it, Claude Code asks for an API key and keeps it in the system's credential store; change it later under `/plugin`, Installed, Configure options. It is the key of the provider your config names (`model.provider`: Anthropic by default, or OpenAI, Gemini, Mistral, OpenRouter and others), and wins over that provider's key in the environment. Leave it empty to use the environment (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...), or for a local model.
+
+The plugin needs no approval: installing from this repository works for everyone. To give a whole team the plugin, register it in the repository's `.claude/settings.json` with `claude plugin marketplace add guuskeunen/sprint-review --scope project`; each person then runs `claude plugin install sprint-review@sprint-review --scope project` once.
 
 ## Claude Code, Cursor and other MCP clients
 

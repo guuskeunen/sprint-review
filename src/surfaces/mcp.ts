@@ -7,7 +7,7 @@ import { withWebsiteBrand } from '../brand/website.ts';
 import { costLine, recordRun } from '../ai/costs.ts';
 import { generate, missedWork, onBranch, rangeFor } from '../review/generate.ts';
 import { History, type Range } from '../git/history.ts';
-import { clientFor } from '../ai/providers.ts';
+import { clientFor, keyEnvFor, type ProviderName } from '../ai/providers.ts';
 import { commitLog } from '../ai/prompt.ts';
 import { writeOutputs } from '../review/output.ts';
 import { doctorChecks } from './doctor.ts';
@@ -145,7 +145,8 @@ export async function callTool(name: string, a: Args, cwd = process.cwd()): Prom
     return `Created ${file}. Run check_sprint_review_setup next; the file has comments for everything else (screenshots, limits, labels).`;
   }
   if (name === 'check_sprint_review_setup') {
-    const lines = await doctorChecks(configIn(dir), dir);
+    const config = configIn(dir);
+    const lines = await doctorChecks(config, dir, withPluginKey(process.env, config.model.provider));
     return lines.map((l) => `${l.ok ? '✓' : '✗'} ${l.text}${l.fix ? `\n  fix: ${l.fix}` : ''}`).join('\n');
   }
   if (name === 'preview_sprint_commits') {
@@ -168,7 +169,7 @@ export async function callTool(name: string, a: Args, cwd = process.cwd()): Prom
   }
   if (name === 'generate_sprint_review') {
     const config = await withWebsiteBrand(configIn(dir));
-    const result = await generate(config, { model: clientFor(config.model), range: rangeOf(a, config) });
+    const result = await generate(config, { model: clientFor(config.model, withPluginKey(process.env, config.model.provider)), range: rangeOf(a, config) });
     const outDir = inside(dir, resolve(config.root, typeof a.out === 'string' ? a.out : join(config.output.dir, result.review.until)));
     const files = await writeOutputs(result.review, config, outDir, { pptx: a.pptx === true ? true : undefined });
     const ledger = recordRun(config, result);
@@ -224,6 +225,19 @@ export async function handle(msg: { id?: number | string | null; method?: string
 }
 
 /** The MCP server over stdio: one JSON message per line in, one per line out. Logs go to stderr. */
+/**
+ * The key the Claude Code plugin asked for when it was enabled (userConfig, kept in the system's
+ * credential store) arrives as SPRINT_REVIEW_API_KEY. It is the key of whichever provider the
+ * project's config names (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, ...), and wins over
+ * the one from the shell, which may be an old one. An empty or unfilled value (${...}) is ignored,
+ * and so is the key for a local model, which needs none.
+ */
+export function withPluginKey(env: NodeJS.ProcessEnv, provider: ProviderName): NodeJS.ProcessEnv {
+  const key = env.SPRINT_REVIEW_API_KEY?.trim();
+  const name = keyEnvFor(provider);
+  return key && !key.startsWith('${') && name ? { ...env, [name]: key } : env;
+}
+
 export function serveMcp(): void {
   const rl = createInterface({ input: process.stdin });
   rl.on('line', (line) => {

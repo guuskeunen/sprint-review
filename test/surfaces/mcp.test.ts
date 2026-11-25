@@ -78,3 +78,13 @@ test('init_sprint_review writes a config the tool reads back, with tricky values
   await assert.rejects(callTool('init_sprint_review', { name: 'X', website: 'essentium.nl' }, empty), /website must start with https:\/\//);
   assert.ok(TOOLS.some((t) => t.name === 'init_sprint_review'));
 });
+
+test('the key typed into the Claude Code plugin goes to the configured provider and wins over the shell one', async () => {
+  const { withPluginKey } = await import('../../src/surfaces/mcp.ts');
+  assert.equal(withPluginKey({ ANTHROPIC_API_KEY: 'old', SPRINT_REVIEW_API_KEY: 'sk-new' }, 'anthropic').ANTHROPIC_API_KEY, 'sk-new');
+  assert.equal(withPluginKey({ SPRINT_REVIEW_API_KEY: 'sk-oa' }, 'openai').OPENAI_API_KEY, 'sk-oa');
+  assert.equal(withPluginKey({ SPRINT_REVIEW_API_KEY: 'g' }, 'gemini').GEMINI_API_KEY, 'g');
+  assert.equal(withPluginKey({ ANTHROPIC_API_KEY: 'shell', SPRINT_REVIEW_API_KEY: '' }, 'anthropic').ANTHROPIC_API_KEY, 'shell');
+  assert.equal(withPluginKey({ ANTHROPIC_API_KEY: 'shell', SPRINT_REVIEW_API_KEY: '${user_config.api_key}' }, 'anthropic').ANTHROPIC_API_KEY, 'shell');
+  assert.deepEqual(withPluginKey({ SPRINT_REVIEW_API_KEY: 'k' }, 'ollama'), { SPRINT_REVIEW_API_KEY: 'k' }, 'a local model needs no key');
+});
