@@ -371,6 +371,7 @@ sprint-review --since 2026-11-03 --until 2026-11-16   # two dates, both included
 sprint-review --until 2026-11-16                      # the sprint (sprint.days) ending that day
 sprint-review --from v1.4.0                           # since a tag, up to HEAD
 sprint-review --from v1.4.0 --to v1.5.0               # between two tags or commits
+sprint-review --since 2026-11-18 --to origin/develop   # the days, read on another branch
 ```
 
 ## Installing it for good
@@ -390,7 +391,7 @@ Or globally: `npm install -g @guuskeunen/sprint-review`, then just `sprint-revie
 
 # Configuration reference
 
-sprint-review works without a config. A config file makes the deck fit your product, audience and brand.
+sprint-review works without a config. A config file makes the deck fit your product, audience and brand. It is found in the folder you run in or a folder above it, up to the root of the git repository, so a run from `apps/web` reads the project's config; `render` looks from the review's own folder.
 
 ## Where the config lives
 
@@ -419,6 +420,7 @@ goal: One customer page for the front desk
 
 sprint:
   days: 14
+  branch: develop
 
 brand:
   color: "#ea580c"
@@ -508,6 +510,9 @@ The sprint goal. Shown on the cover, and the AI puts the work that served it fir
 
 ### `sprint.days`
 How many days a review covers when you don't pass `--since` or `--from`. Both ends are included, so `14` with today being the 16th covers the 3rd to the 16th. Default `14`.
+
+### `sprint.branch`
+The branch the sprint is read from, whatever is checked out: `origin/develop` when it has been fetched, else the local `develop`. Set it when the team merges into a branch other than the one you usually have checked out. `--to` (or `to` in the MCP server) overrides it for one run. Without it, the review reads what is checked out, and warns in the output and in `checks.md` when `origin/main` or `origin/develop` has commits of the sprint that the checkout lacks. Default: none.
 
 ### `brand`
 
@@ -1934,7 +1939,9 @@ All expected failures are their own class, with a message meant for people:
 
 # Troubleshooting
 
-Start with `npx @guuskeunen/sprint-review doctor`. It checks the config, the git history, the API key and your Node version, and says how to fix each one.
+Start with `npx @guuskeunen/sprint-review doctor`. It checks the config, the git history (and whether the checkout misses commits of the sprint that `origin/main` or `origin/develop` has), the API key (with Anthropic it asks the API whether the key works and the model exists, which costs nothing) and your Node version, and says how to fix each one.
+
+**`fetch failed` after a few minutes:** the answer streams, so a VPN or proxy that drops quiet connections no longer ends a run. If it still happens, the output says which try failed and why; check that `api.anthropic.com` is reachable.
 
 ### "This checkout's history starts on …" or "has a shallow history"
 The repository was cloned with only part of its history, which is common in CI. A shallow clone is fine as long as it reaches back to before the sprint started (`git clone --shallow-since=<a week before the sprint>`); the error names the date to fetch from. To be safe, fetch everything. In GitHub Actions:
