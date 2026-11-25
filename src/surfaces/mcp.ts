@@ -86,11 +86,17 @@ function rangeOf(a: Args, config: Config): Range {
   return rangeFor({ since: s('since'), until: s('until'), from: s('from'), to: s('to') }, config.sprint.days);
 }
 
-/** The folder, when it is a project: it has a sprint-review config or is a git repository. */
+/**
+ * The project a folder belongs to: the folder itself or the nearest one above it with a
+ * sprint-review config or a git repository, so apps/web works as well as the root. A folder in no
+ * project is refused: the server only reads and writes inside one.
+ */
 function project(dir: string): string {
-  const marks = ['.git', 'sprint-review.config.yml', 'sprint-review.config.yaml', 'sprint-review.config.json'];
-  if (!marks.some((m) => existsSync(join(dir, m)))) throw new Error(`${dir} is not inside the project: give the project folder, with a sprint-review config or a git repository.`);
-  return dir;
+  const marks = ['sprint-review.config.yml', 'sprint-review.config.yaml', 'sprint-review.config.json', '.git'];
+  for (let at = dir; ; at = dirname(at)) {
+    if (marks.some((m) => existsSync(join(at, m)))) return at;
+    if (dirname(at) === at) throw new Error(`${dir} is in no project: give a folder in a git repository or with a sprint-review config.`);
+  }
 }
 
 /** The path, when it lies inside root (the project); anything else is refused. */
@@ -122,6 +128,7 @@ export async function callTool(name: string, a: Args, cwd = process.cwd()): Prom
   if (name === 'render_sprint_review') {
     if (typeof a.file !== 'string') throw new Error('file is required.');
     const file = inside(dir, resolve(dir, a.file));
+    if (!existsSync(file)) throw new Error(`No file at ${a.file}. Give the review.json in a review's folder, such as sprint-reviews/2026-11-10/review.json.`);
     const review = validReview(JSON.parse(readFileSync(file, 'utf8')) as Review);
     const out = await writeOutputs(review, await withWebsiteBrand(configIn(dir)), dirname(file));
     return `Rebuilt ${out.deck}`;

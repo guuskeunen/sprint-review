@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { handle, TOOLS } from '../../src/surfaces/mcp.ts';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { callTool, handle, TOOLS } from '../../src/surfaces/mcp.ts';
 import { demoRepo } from '../helpers.ts';
 
 test('the MCP server answers initialize, lists its tools and runs them', async () => {
@@ -43,4 +46,15 @@ test('every tool has a title, behavior hints and a described input', () => {
   assert.equal(tool('check_sprint_review_setup').annotations.readOnlyHint, true);
   assert.equal(tool('generate_sprint_review').annotations.openWorldHint, true);
   assert.doesNotMatch(tool('generate_sprint_review').description, /OPENAI_API_KEY in the server environment\)/);
+});
+
+test('a folder inside the project works as the project, a folder in none is refused, and a missing review is named', async () => {
+  const repo = demoRepo();
+  const sub = join(repo, 'src', 'customers');
+  const preview = await callTool('preview_sprint_commits', { directory: 'src/customers', since: '2026-11-03', until: '2026-11-16' }, repo);
+  assert.match(preview, /^\d+ commits on HEAD/);
+  assert.match(await callTool('preview_sprint_commits', { since: '2026-11-03', until: '2026-11-16' }, sub), /^\d+ commits on HEAD/);
+  await assert.rejects(callTool('preview_sprint_commits', {}, mkdtempSync(join(tmpdir(), 'sprint-review-none-'))), /is in no project/);
+  await assert.rejects(callTool('render_sprint_review', { file: 'nope.json' }, repo), /No file at nope\.json/);
+  await assert.rejects(callTool('preview_sprint_commits', { since: '2026-02-30' }, repo), /since must be a real date/);
 });
