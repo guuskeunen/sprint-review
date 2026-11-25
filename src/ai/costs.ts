@@ -69,12 +69,12 @@ export function costOf(calls: Call[], config: ModelConfig, on: string): Cost {
 }
 
 /** A model client that writes down every answer's model and tokens, for the cost of the run. */
-export function metered(model: ModelClient): ModelClient & { calls: Call[] } {
+export function metered(model: ModelClient, progress?: (message: string) => void): ModelClient & { calls: Call[] } {
   const calls: Call[] = [];
   return {
     calls,
     async ask(request: ModelRequest): Promise<ModelAnswer> {
-      const answer = await model.ask(request);
+      const answer = await model.ask(progress ? { ...request, progress } : request);
       calls.push({ model: answer.model, input: answer.usage.input, output: answer.usage.output });
       return answer;
     },

@@ -110,7 +110,7 @@ export async function generate(config: Config, options: GenerateOptions): Promis
   if (config.screenshots.source !== 'none') step(`${changed.length} screen${changed.length === 1 ? '' : 's'} changed, ${available.size} picture${available.size === 1 ? '' : 's'} available`);
 
   step(`Writing the slides with ${config.model.name}${config.model.provider === 'anthropic' ? '' : ` via ${config.model.provider}`}`);
-  const meter = metered(options.model);
+  const meter = metered(options.model, step);
   const { end } = history.ends(range);
   const roadmap = history.milestones(end, config.roadmap);
   const staged = roadmap.filter((m) => m.stage);

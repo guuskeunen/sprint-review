@@ -11,6 +11,8 @@ export interface ModelRequest {
   messages: string[];
   tool: ToolSpec;
   maxTokens: number;
+  /** Told what happens while the answer is on its way: still writing, a retry and why, the fallback. */
+  progress?: (message: string) => void;
 }
 
 export interface ModelAnswer {
@@ -89,6 +91,8 @@ const TIMEOUT_MS = 180_000;
 /** The Anthropic answer streams, so a long one is fine as long as bytes keep coming. */
 const IDLE_MS = 90_000;
 const TOTAL_MS = 900_000;
+/** How often a long call says it is still writing. */
+const PROGRESS_MS = 30_000;
 const RETRIES = 3;
 
 /** The Anthropic Messages API, asked to answer through one tool, with retries and a fallback model. */
@@ -111,6 +115,7 @@ export class AnthropicClient implements ModelClient {
       return await this.call(this.model, request);
     } catch (e) {
       if (!this.fallback || this.fallback === this.model || (e instanceof ModelError && /401|403|invalid x-api-key/i.test(e.message))) throw e;
+      request.progress?.(`${this.model} failed (${reason(e)}); asking ${this.fallback}`);
       return this.call(this.fallback, request);
     }
   }
@@ -132,7 +137,12 @@ export class AnthropicClient implements ModelClient {
     });
     let last: unknown;
     for (let attempt = 0; attempt < RETRIES; attempt++) {
+      if (attempt > 0) request.progress?.(`${model}: try ${attempt} of ${RETRIES} failed (${reason(last)}); trying again`);
       const abort = new AbortController();
+      // While the answer is written, say so now and then, so a long wait never looks like a hang.
+      const started = Date.now();
+      let received = 0;
+      const beat = setInterval(() => request.progress?.(`${model} is still writing: ${Math.round((Date.now() - started) / 1000)} s${received ? `, ${Math.round(received / 1024)} KB in` : ', waiting for the first words'}`), PROGRESS_MS);
       const total = setTimeout(() => abort.abort(new Error(`Anthropic API: no answer within ${TOTAL_MS / 60_000} minutes`)), TOTAL_MS);
       let idle = setTimeout(() => {}, 0);
       const alive = () => {
@@ -147,7 +157,10 @@ export class AnthropicClient implements ModelClient {
           body,
           signal: abort.signal,
         });
-        const text = await readBody(res, alive);
+        const text = await readBody(res, (bytes) => {
+          received += bytes;
+          alive();
+        });
         let failure: ModelError | null = null;
         let status = res.status;
         let data: AnthropicMessage = {};
@@ -186,6 +199,7 @@ export class AnthropicClient implements ModelClient {
       } finally {
         clearTimeout(total);
         clearTimeout(idle);
+        clearInterval(beat);
       }
     }
     throw last instanceof Error ? last : new ModelError(String(last));
@@ -212,6 +226,14 @@ export interface CompatibleOptions {
   /** The environment variable for the key, for the error message. */
   keyEnv?: string;
   timeoutMs?: number;
+}
+
+/** Why a try failed, in a few words: the status and message, or the network error under "fetch failed". */
+function reason(e: unknown): string {
+  if (!(e instanceof Error)) return String(e);
+  const cause = (e as { cause?: { code?: string; message?: string } }).cause;
+  const text = e.message === 'fetch failed' && cause ? `fetch failed: ${cause.code ?? cause.message ?? 'network error'}` : e.message;
+  return text.replace(/\s+/g, ' ').slice(0, 120);
 }
 
 const OPENAI_API = 'https://api.openai.com/v1';
