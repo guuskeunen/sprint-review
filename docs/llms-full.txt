@@ -833,7 +833,7 @@ When a page sends capture to a login page (`/login`, `/signin`, `/auth`), it sto
 
 The screen key turns into a readable name ("customer-page" → "Customer page") unless you set one in `names`. The order of `names` is also the order of the slides.
 
-Phone pictures are shown upright, in a phone frame.
+Phone pictures are shown upright, in a phone frame: one phone screen around the change, with the change framed, and → zooms in on where it starts. A phone picture gets a before and after slide only when the desktop picture of the same screen did not change too; otherwise the desktop slide shows the change, larger.
 
 ## Short video clips
 
@@ -1141,7 +1141,7 @@ npx @guuskeunen/sprint-review edit sprint-reviews/2026-11-16/review.json
 
 **Open live view** shows the deck on its own in a new window, for a second screen or a call: it follows every edit as you type and the slide you're working on.
 
-**From the deck:** a deck opened from your disk has an **Edit** button in the top right corner. It opens the editor when it's running; when it isn't, it shows the command that starts it for this deck, ready to copy. Published and shared decks don't show the button; they show **Download** in its place, with a PDF (every slide a page, through the print dialog), the deck as one HTML file that works offline, and the PowerPoint when a `deck.pptx` sits next to the deck.
+**From the deck:** a deck opened from your disk has an **Edit** button in the top right corner. It opens the editor when it's running; when it isn't, it shows the command that starts it for this deck, ready to copy. Published and shared decks don't show the button; they show **Download** in its place, with a PDF (every slide a page, through the print dialog), the deck as one HTML file that works offline, and the PowerPoint when a published `deck.pptx` sits next to the deck. A deck opened from your disk shows **Download** next to Edit, with the PDF and a copy of the deck to pass on.
 
 The editor only listens on `127.0.0.1`, and only the page it opened can talk to it. `--port` picks another port (default 4321).
 
@@ -1264,7 +1264,7 @@ The deck follows rules from presentation research: Apple's keynotes and Human In
 ## The story
 
 1. **Cover**: the product's name, "Sprint review" and the period (the date isn't repeated in the title), the sprint goal when `goal` is set, and the sprint's strongest screenshot running off the right edge.
-2. **The sprint headline**: the one change that matters most to a user, in at most ten plain words (never two things joined with "and", never how it works), and a row with the theme names. A sprint goal is set before the sprint and can't be read from git, so the headline describes what was done.
+2. **The sprint headline**: what the sprint as a whole changed for a user, in at most ten plain words (never one commit standing in for a sprint of several themes, never a list of the themes, never how it works), and a row with the theme names. A sprint goal is set before the sprint and can't be read from git, so the headline describes what was done.
 3. **Last sprint**: what the previous review showed as next on the roadmap, and whether it is done now. Only when there is a previous review in the output folder and a roadmap; the audience checks promises before hearing new ones (GitLab publishes its kickoff and retrospective as a pair for the same reason).
 4. **You asked**: requests from `FEEDBACK.md` that this sprint answered, each with what was done, backed by a commit.
 5. **Theme slides**: the biggest themes, one slide each. `deck.density` sets how many: 2, 3 or 4.
