@@ -178,3 +178,24 @@ test('a model that refuses tool calls is asked again in JSON mode, once', async 
   await client.ask(request);
   assert.equal(bodies.length, 3, 'later calls go straight to JSON mode');
 });
+
+test('doctor asks Anthropic whether the key works and the model exists, without spending tokens', async () => {
+  const dir = demoRepo();
+  const config = normalize({ model: { provider: 'anthropic', name: 'claude-sonnet-5-5' } }, dir);
+  const seen: { url: string; key: string | null }[] = [];
+  const answer = (status: number) =>
+    (async (url: string, init: RequestInit) => {
+      seen.push({ url, key: new Headers(init.headers).get('x-api-key') });
+      return new Response('{}', { status });
+    }) as unknown as typeof fetch;
+  const line = async (f: typeof fetch) => (await doctorChecks(config, dir, { ANTHROPIC_API_KEY: 'sk-test' }, f)).find((l) => /Anthropic/.test(l.text))!;
+  assert.deepEqual(await line(answer(200)), { ok: true, text: 'Anthropic accepts the key and knows claude-sonnet-5-5' });
+  assert.deepEqual(seen[0], { url: 'https://api.anthropic.com/v1/models/claude-sonnet-5-5', key: 'sk-test' });
+  const rejected = await line(answer(401));
+  assert.equal(rejected.ok, false);
+  assert.match(rejected.fix ?? '', /restart the client/);
+  assert.match((await line(answer(404))).text, /doesn't know the model claude-sonnet-5-5/);
+  const offline = (async () => { throw new TypeError('fetch failed'); }) as unknown as typeof fetch;
+  assert.match((await line(offline)).fix ?? '', /VPN or proxy/);
+  assert.equal((await doctorChecks(config, dir, {}, answer(200))).some((l) => /Anthropic accepts/.test(l.text)), false, 'no key, no request');
+});
