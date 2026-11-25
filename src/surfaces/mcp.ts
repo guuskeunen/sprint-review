@@ -1,8 +1,8 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { loadConfig, normalize, type Config } from '../config.ts';
+import { configTemplate, configText, findConfigFile, loadConfig, normalize, type Config } from '../config.ts';
 import { withWebsiteBrand } from '../brand/website.ts';
 import { costLine, recordRun } from '../ai/costs.ts';
 import { generate, missedWork, onBranch, rangeFor } from '../review/generate.ts';
@@ -27,6 +27,28 @@ const RANGE = {
 };
 
 export const TOOLS = [
+  {
+    name: 'init_sprint_review',
+    title: 'Create the config',
+    description:
+      'Create sprint-review.config.yml in the project, so the deck knows the product, its audience, the language and the brand. Ask the user for the product name, one or two sentences on what it is and who uses it, who watches the review, the language of the slides and the brand website first; leave out what they don\'t know. Refuses to replace an existing config. No model call, no cost. Use it when check_sprint_review_setup says there is no config.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        directory: DIR,
+        name: { type: 'string', description: 'The product name, as users call it.' },
+        description: { type: 'string', description: 'One or two sentences on what the product is and who uses it.' },
+        organization: { type: 'string', description: 'The organization, shown on the cover.' },
+        audience: { type: 'string', description: 'Who watches the review: business, executives, customers, team, or a description of your own.' },
+        language: { type: 'string', description: 'The language of the slides, e.g. Dutch, English, de-DE.' },
+        website: { type: 'string', description: 'The brand website (https://...): color, logo and fonts are read from it.' },
+        branch: { type: 'string', description: 'The branch the team merges into, when that is not the one usually checked out, e.g. develop.' },
+      },
+      required: ['name'],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
   {
     name: 'check_sprint_review_setup',
     title: 'Check the setup',
@@ -111,6 +133,17 @@ export async function callTool(name: string, a: Args, cwd = process.cwd()): Prom
   // An assistant chooses these arguments, and text it read can steer it: the folder must be a
   // project (a config or a git repository), and files are read and written only inside it.
   const dir = project(resolve(cwd, typeof a.directory === 'string' ? a.directory : '.'));
+  if (name === 'init_sprint_review') {
+    const existing = findConfigFile(dir);
+    if (existing) throw new Error(`There is a config already: ${existing}. Edit it instead.`);
+    const s = (k: string) => (typeof a[k] === 'string' && (a[k] as string).trim() ? (a[k] as string).trim() : undefined);
+    if (!s('name')) throw new Error('name is required: the product name, as users call it.');
+    const website = s('website');
+    if (website && !/^https?:\/\//.test(website)) throw new Error('website must start with https://.');
+    const file = join(dir, 'sprint-review.config.yml');
+    writeFileSync(file, configText({ name: s('name')!, description: s('description'), organization: s('organization'), audience: s('audience'), language: s('language'), website, branch: s('branch') }, configTemplate()));
+    return `Created ${file}. Run check_sprint_review_setup next; the file has comments for everything else (screenshots, limits, labels).`;
+  }
   if (name === 'check_sprint_review_setup') {
     const lines = await doctorChecks(configIn(dir), dir);
     return lines.map((l) => `${l.ok ? '✓' : '✗'} ${l.text}${l.fix ? `\n  fix: ${l.fix}` : ''}`).join('\n');

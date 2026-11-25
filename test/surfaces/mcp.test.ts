@@ -58,3 +58,23 @@ test('a folder inside the project works as the project, a folder in none is refu
   await assert.rejects(callTool('render_sprint_review', { file: 'nope.json' }, repo), /No file at nope\.json/);
   await assert.rejects(callTool('preview_sprint_commits', { since: '2026-02-30' }, repo), /since must be a real date/);
 });
+
+test('init_sprint_review writes a config the tool reads back, with tricky values intact, and never replaces one', async () => {
+  const repo = mkdtempSync(join(tmpdir(), 'sprint-review-init-'));
+  execFileSync('git', ['init', '-q', repo]);
+  const said = await callTool('init_sprint_review', { name: 'Vector: AI', description: 'Recruiters find "the right" candidate.', organization: 'Essentium', audience: 'business', language: 'Dutch', website: 'https://essentium.nl', branch: 'develop' }, repo);
+  assert.match(said, /^Created .*sprint-review\.config\.yml/);
+  const { loadConfig } = await import('../../src/config.ts');
+  const config = loadConfig(null, repo);
+  assert.equal(config.product.name, 'Vector: AI');
+  assert.equal(config.product.description, 'Recruiters find "the right" candidate.');
+  assert.equal(config.organization, 'Essentium');
+  assert.equal(config.language, 'Dutch');
+  assert.equal(config.brand.from, 'https://essentium.nl');
+  assert.equal(config.sprint.branch, 'develop');
+  await assert.rejects(callTool('init_sprint_review', { name: 'Other' }, repo), /There is a config already/);
+  const empty = mkdtempSync(join(tmpdir(), 'sprint-review-init-'));
+  execFileSync('git', ['init', '-q', empty]);
+  await assert.rejects(callTool('init_sprint_review', { name: 'X', website: 'essentium.nl' }, empty), /website must start with https:\/\//);
+  assert.ok(TOOLS.some((t) => t.name === 'init_sprint_review'));
+});

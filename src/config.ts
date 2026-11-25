@@ -469,3 +469,37 @@ export function isLoopback(url: string): boolean {
     return false;
   }
 }
+
+/** The commented template a new config starts from. */
+export function configTemplate(): string {
+  return readFileSync(new URL('../assets/config.template.yml', import.meta.url), 'utf8');
+}
+
+/** What a new config is filled with; every field but the name is optional. */
+export interface NewConfig {
+  name: string;
+  description?: string;
+  organization?: string;
+  audience?: string;
+  language?: string;
+  /** The brand's website: color, logo and fonts are read from it. */
+  website?: string;
+  branch?: string;
+}
+
+/**
+ * A new sprint-review.config.yml: the commented template with these values in it. Values go in
+ * as YAML, so a name with a colon or a quote can't break the file. Shared by init and the MCP server.
+ */
+export function configText(values: NewConfig, template: string): string {
+  const v = (x: string) => YAML.stringify(x).trim();
+  let text = template
+    .replace('name: {{name}}', `name: ${v(values.name)}`)
+    .replace('audience: {{audience}}', `audience: ${v(values.audience || 'business')}`);
+  if (values.description) text = text.replace('  description: ""', `  description: ${v(values.description)}`);
+  if (values.organization) text = text.replace('organization: ""', `organization: ${v(values.organization)}`);
+  if (values.language) text = text.replace('language: English', `language: ${v(values.language)}`);
+  if (values.branch) text = text.replace(/ {2}# branch: develop .*/, `  branch: ${v(values.branch)}`);
+  if (values.website) text = text.replace('  color: "#4f46e5"', `  from: ${v(values.website)}            # color, logo and fonts from the website\n  # color: "#4f46e5"`);
+  return text;
+}

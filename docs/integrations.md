@@ -43,12 +43,13 @@ Then ask: *"Make our sprint review for the last two weeks"*, or *"What would the
 
 | Tool | Does | Changes files |
 |---|---|---|
+| `init_sprint_review` | Creates `sprint-review.config.yml` from the product name, description, audience, language, brand website and branch the assistant asked you for. Never replaces a config. | Yes, the config only |
 | `check_sprint_review_setup` | Runs the same checks as `doctor`. | No |
 | `preview_sprint_commits` | Lists the commits for a range, without a model call. | No |
 | `generate_sprint_review` | Writes the deck and returns the paths, the themes, every check and the cost. Replaces an earlier deck in the same folder. | Yes |
 | `render_sprint_review` | Rebuilds the deck from an edited `review.json`. | Yes, the deck only |
 
-Every tool takes `directory` (the project folder; default where the server started). `preview_sprint_commits` and `generate_sprint_review` also take the range arguments `since`, `until`, `from` and `to`. Each tool tells the client whether it only reads, changes files or calls outside services (MCP tool annotations), so clients can ask before the ones that do.
+Every tool takes `directory` (a folder in the project; default where the server started). `preview_sprint_commits` and `generate_sprint_review` also take the range arguments `since`, `until`, `from` and `to`. Each tool tells the client whether it only reads, changes files or calls outside services (MCP tool annotations), so clients can ask before the ones that do.
 
 ## The Claude Code skill on its own
 

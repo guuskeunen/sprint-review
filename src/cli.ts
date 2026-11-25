@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { ConfigError, findConfigFile, loadConfig, normalize, type Config } from './config.ts';
+import { ConfigError, configTemplate, configText, findConfigFile, loadConfig, normalize, type Config } from './config.ts';
 import { generate, missedWork, NothingToReview, onBranch, rangeFor } from './review/generate.ts';
 import { GitError, History, type Range } from './git/history.ts';
 import { ModelError } from './ai/model.ts';
@@ -308,10 +308,8 @@ function init(force: boolean, preset: string | undefined): number {
     err(`${basename(file)} already exists. Use --force to replace it.`);
     return 1;
   }
-  const template = readFileSync(fileURLToPath(new URL('../assets/config.template.yml', import.meta.url)), 'utf8');
-  const name = guessName();
   const audience = preset && ['business', 'executives', 'customers', 'team'].includes(preset) ? preset : 'business';
-  writeFileSync(file, template.replace('{{name}}', name).replace('{{audience}}', audience));
+  writeFileSync(file, configText({ name: guessName(), audience }, configTemplate()));
   out(`${green('✓')} Created ${basename(file)}\n`);
   out(`Next:\n  1. Fill in the product description and audience\n  2. export ANTHROPIC_API_KEY=...\n  3. ${bold('npx @guuskeunen/sprint-review --dry-run')} to see what it will read\n  4. ${bold('npx @guuskeunen/sprint-review')} to write the review`);
   return 0;
