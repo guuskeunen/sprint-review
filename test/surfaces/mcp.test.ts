@@ -12,7 +12,7 @@ test('the MCP server answers initialize, lists its tools and runs them', async (
   const list = await handle({ id: 2, method: 'tools/list' });
   assert.deepEqual((list!.result as any).tools.map((t: any) => t.name), TOOLS.map((t) => t.name));
   const preview = await handle({ id: 3, method: 'tools/call', params: { name: 'preview_sprint_commits', arguments: { directory: dir, since: '2026-11-03', until: '2026-11-16' } } });
-  assert.match((preview!.result as any).content[0].text, /commits \(\d+ touch product code\)/);
+  assert.match((preview!.result as any).content[0].text, /commits on HEAD \(\d+ touch product code\)/);
   const bad = await handle({ id: 4, method: 'tools/call', params: { name: 'preview_sprint_commits', arguments: { directory: dir, since: 'last week' } } });
   assert.equal((bad!.result as any).isError, true);
   const unknown = await handle({ id: 5, method: 'nope' });

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { loadConfig, normalize, type Config } from '../config.ts';
 import { withWebsiteBrand } from '../brand/website.ts';
 import { costLine, recordRun } from '../ai/costs.ts';
-import { generate, sprintRange } from '../review/generate.ts';
+import { generate, missedWork, onBranch, sprintRange } from '../review/generate.ts';
 import { History, type Range } from '../git/history.ts';
 import { clientFor } from '../ai/providers.ts';
 import { commitLog } from '../ai/prompt.ts';
@@ -23,7 +23,7 @@ const RANGE = {
   since: { type: 'string', pattern: DAY, description: 'First day of the sprint, YYYY-MM-DD. Default: the configured sprint length (two weeks unless set) back from until.' },
   until: { type: 'string', pattern: DAY, description: 'Last day of the sprint, YYYY-MM-DD. Default: today.' },
   from: { type: 'string', description: 'Start after this tag or commit instead of a date, e.g. v1.4.0.' },
-  to: { type: 'string', description: 'End at this tag or commit. Default: HEAD.' },
+  to: { type: 'string', description: 'End at this tag, branch or commit (with from), or the branch the days are counted on (with dates), e.g. origin/develop. Default: sprint.branch from the config, else HEAD.' },
 };
 
 export const TOOLS = [
@@ -85,8 +85,10 @@ function rangeOf(a: Args, config: Config): Range {
   const s = (k: string) => (typeof a[k] === 'string' && a[k] ? (a[k] as string) : undefined);
   if (s('from')) return { kind: 'refs', from: s('from')!, to: s('to') ?? 'HEAD' };
   for (const k of ['since', 'until']) if (s(k) && !/^\d{4}-\d{2}-\d{2}$/.test(s(k)!)) throw new Error(`${k} must be a date like 2026-11-10.`);
-  if (s('since')) return { kind: 'dates', from: s('since')!, until: s('until') ?? new Date().toISOString().slice(0, 10) };
-  return sprintRange(config.sprint.days, s('until'));
+  // With dates, to is the branch the days are counted on.
+  const at = s('to') ? { at: s('to')! } : {};
+  if (s('since')) return { kind: 'dates', from: s('since')!, until: s('until') ?? new Date().toISOString().slice(0, 10), ...at };
+  return { ...sprintRange(config.sprint.days, s('until')), ...at };
 }
 
 /** The folder, when it is a project: it has a sprint-review config or is a git repository. */
@@ -114,11 +116,13 @@ export async function callTool(name: string, a: Args, cwd = process.cwd()): Prom
   }
   if (name === 'preview_sprint_commits') {
     const config = await withWebsiteBrand(configIn(dir));
-    const range = rangeOf(a, config);
     const history = new History(config.repo);
+    const range = onBranch(rangeOf(a, config), config, history);
     history.assertUsable(range);
     const commits = history.commits(range, config.productPaths, config.ignore, config.limits.commits, config.nonProductTypes);
-    return `${commits.length} commits (${commits.filter((c) => c.product).length} touch product code)\n\n${commitLog(commits).slice(0, 20000)}`;
+    const missed = missedWork(range, config, history);
+    const read = range.kind === 'dates' ? ` on ${range.at ?? 'HEAD'}` : '';
+    return `${commits.length} commits${read} (${commits.filter((c) => c.product).length} touch product code)${missed ? `\n\nWarning: ${missed}` : ''}\n\n${commitLog(commits).slice(0, 20000)}`;
   }
   if (name === 'render_sprint_review') {
     if (typeof a.file !== 'string') throw new Error('file is required.');

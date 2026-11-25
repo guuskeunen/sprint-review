@@ -4,7 +4,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:pat
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { ConfigError, loadConfig, normalize, type Config } from './config.ts';
-import { generate, NothingToReview, sprintRange } from './review/generate.ts';
+import { generate, missedWork, NothingToReview, onBranch, sprintRange } from './review/generate.ts';
 import { GitError, History, type Range } from './git/history.ts';
 import { ModelError } from './ai/model.ts';
 import { clientFor } from './ai/providers.ts';
@@ -52,7 +52,8 @@ ${bold('Options for generate')}
   --since <date>    First day of the sprint (YYYY-MM-DD)
   --until <date>    Last day of the sprint (default: today)
   --from <ref>      Start at a tag or commit instead of a date
-  --to <ref>        End at a tag or commit (default: HEAD)
+  --to <ref>        End at a tag or commit, or with dates the branch to read
+                    (default: sprint.branch, else HEAD)
   --out <dir>       Where to write (default: sprint-reviews/<date>)
   --pptx            Also write deck.pptx (needs pptxgenjs)
   --slack           Post the summary to SLACK_WEBHOOK_URL
@@ -187,15 +188,18 @@ async function run(flags: Flags): Promise<number> {
   return 0;
 }
 
-function dryRun(config: Config, range: Range): number {
+function dryRun(config: Config, asked: Range): number {
   const history = new History(config.repo);
+  const range = onBranch(asked, config, history);
   history.assertUsable(range);
+  const missed = missedWork(range, config, history);
   const commits = history.commits(range, config.productPaths, config.ignore, config.limits.commits, config.nonProductTypes);
   const prompt = writerSystem(config);
   const log = fitLog(commits, config.model.maxInputChars).log;
   const tokens = Math.round((prompt.length + log.length) / 3.5) + 3000;
   out(`${bold('Dry run')} ${dim('nothing is sent')}\n`);
-  out(`${bold('Range')}     ${range.kind === 'dates' ? `${range.from} to ${range.until}` : `${range.from}..${range.to}`}`);
+  out(`${bold('Range')}     ${range.kind === 'dates' ? `${range.from} to ${range.until} on ${range.at ?? 'HEAD'}` : `${range.from}..${range.to}`}`);
+  if (missed) out(`${orange('Warning')}   ${missed}`);
   out(`${bold('Commits')}   ${commits.length} (${commits.filter((x) => x.product).length} touch product code)`);
   out(`${bold('Model')}     ${config.model.name} ${dim(`via ${config.model.provider}`)}${config.model.fallback ? dim(` (fallback ${config.model.fallback})`) : ''}`);
   out(`${bold('Estimate')}  about ${tokens.toLocaleString('en-US')} input tokens for the writer and the reader`);
@@ -327,8 +331,10 @@ function rangeFrom(flags: Flags, config: Config): Range {
   for (const [k, v] of [['since', flags.since], ['until', flags.until]] as const) {
     if (v && !date.test(v)) throw new ConfigError(`--${k} must be a date like 2026-11-10.`);
   }
-  if (flags.since) return { kind: 'dates', from: flags.since, until: flags.until ?? new Date().toISOString().slice(0, 10) };
-  return sprintRange(config.sprint.days, flags.until);
+  // With dates, --to is the branch the days are counted on.
+  const at = flags.to ? { at: flags.to } : {};
+  if (flags.since) return { kind: 'dates', from: flags.since, until: flags.until ?? new Date().toISOString().slice(0, 10), ...at };
+  return { ...sprintRange(config.sprint.days, flags.until), ...at };
 }
 
 function out(s: string): void {

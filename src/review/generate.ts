@@ -41,6 +41,27 @@ export interface Generated {
   models: string[];
 }
 
+/** A date range read on the configured branch (its origin/ copy when fetched), unless the range names its own. */
+export function onBranch(range: Range, config: Config, history: History): Range {
+  if (range.kind !== 'dates' || range.at || !config.sprint.branch) return range;
+  const branch = config.sprint.branch;
+  return { ...range, at: history.exists(`origin/${branch}`) ? `origin/${branch}` : branch };
+}
+
+/**
+ * Work of the sprint on a main branch that what is read lacks: a feature branch behind develop.
+ * Only when no branch was chosen; null when nothing is missing.
+ */
+export function missedWork(range: Range, config: Config, history: History): string | null {
+  if (range.kind !== 'dates' || range.at || config.sprint.branch) return null;
+  let most: { ref: string; n: number } | null = null;
+  for (const ref of new Set([history.remoteDefault(), 'origin/develop', 'origin/development'])) {
+    const n = ref ? history.missingFrom(range, ref) : null;
+    if (ref && n && (!most || n > most.n)) most = { ref, n };
+  }
+  return most ? `${most.n} commit${most.n === 1 ? '' : 's'} of this sprint on ${most.ref} ${most.n === 1 ? 'is' : 'are'} not in what is checked out. Pass --to ${most.ref}, or set sprint.branch in the config.` : null;
+}
+
 /** The sprint that ends on a day (default today): `days` days, both ends included. */
 export function sprintRange(days: number, until = today()): Range {
   const end = new Date(`${until}T00:00:00Z`);
@@ -55,9 +76,11 @@ export function sprintRange(days: number, until = today()): Range {
 export async function generate(config: Config, options: GenerateOptions): Promise<Generated> {
   config = await withWebsiteBrand(config, options.fetch);
   const step = options.onStep ?? (() => {});
-  const range = options.range ?? sprintRange(config.sprint.days);
   const history = new History(config.repo);
+  const range = onBranch(options.range ?? sprintRange(config.sprint.days), config, history);
   history.assertUsable(range);
+  const missed = missedWork(range, config, history);
+  if (missed) step(missed);
 
   step('Reading the git history');
   let commits = history.commits(range, config.productPaths, config.ignore, config.limits.commits, config.nonProductTypes);
@@ -122,7 +145,11 @@ export async function generate(config: Config, options: GenerateOptions): Promis
     milestones,
     usage: readUsage(config),
     // git gives the newest first: a sprint past the limit loses its first days, so say so.
-    checks: commits.length >= config.limits.commits ? [{ kind: 'warning', text: `Only the newest ${commits.length} commits were read`, reason: `The sprint has more commits than limits.commits, so its first days are missing. Raise limits.commits, or narrow ignore.` }, ...written.checks] : written.checks,
+    checks: [
+      ...(missed ? [{ kind: 'warning' as const, text: 'Not the whole sprint', reason: missed }] : []),
+      ...(commits.length >= config.limits.commits ? [{ kind: 'warning' as const, text: `Only the newest ${commits.length} commits were read`, reason: `The sprint has more commits than limits.commits, so its first days are missing. Raise limits.commits, or narrow ignore.` }] : []),
+      ...written.checks,
+    ],
     ...(said ? { lastTime: said } : {}),
     ...(written.answered.length ? { answered: written.answered.map((a) => ({ ask: requests[a.item]!, did: a.text })) } : {}),
   };
