@@ -348,6 +348,8 @@ function script(t: Labels, lang: string): string {
   }).replace(/</g, '\\u003c');
   return `(function () {
   var L = ${L};
+  // The page as it was served, before this script changed anything: what HTML saves on a deck opened from disk.
+  var source = '<!doctype html>\\n' + document.documentElement.outerHTML;
   var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
   var progress = document.querySelector('.progress');
   var counter = document.querySelector('.counter');
@@ -437,19 +439,28 @@ function script(t: Labels, lang: string): string {
     });
   }
 
-  // Download: only on a deck opened from a website, where viewers have no file of their own.
-  // PDF prints every slide as a page; HTML is this file, which works offline; PowerPoint when a deck.pptx sits beside it.
+  // Download: on a deck opened from a website, and on one opened from disk so it can be passed on.
+  // Never inside another page. PDF prints every slide as a page; HTML is this deck as one file, which
+  // works offline; PowerPoint when a deck.pptx sits beside it on a website.
   var downloadButton = document.querySelector('.download-button');
   var downloadMenu = document.querySelector('.download-menu');
-  if (/^https?:$/.test(location.protocol) && window.parent === window && downloadButton && downloadMenu) {
+  var fromSite = /^https?:$/.test(location.protocol);
+  if ((fromSite || location.protocol === 'file:') && window.parent === window && downloadButton && downloadMenu) {
     var here = location.href.split('#')[0];
     var name = (document.title || 'sprint-review').toLowerCase().replace(/[^a-z0-9\u00c0-\u024f]+/g, '-').replace(/^-+|-+$/g, '') || 'sprint-review';
     var htmlLink = downloadMenu.querySelector('[data-get="html"]');
-    htmlLink.href = here;
+    // A file can't link to itself as a download, so a deck from disk saves the page as it was opened.
+    htmlLink.href = fromSite ? here : URL.createObjectURL(new Blob([source], { type: 'text/html' }));
     htmlLink.setAttribute('download', name + '.html');
+    // Opened from disk, Edit has the corner: Download sits just left of it.
+    if (editButton && !editButton.hidden) {
+      var right = Math.round(window.innerWidth - editButton.getBoundingClientRect().left + 8) + 'px';
+      downloadButton.style.right = right;
+      downloadMenu.style.right = right;
+    }
     var pptxLink = downloadMenu.querySelector('[data-get="pptx"]');
     var pptxUrl = new URL('deck.pptx', here).href;
-    fetch(pptxUrl, { method: 'HEAD' }).then(function (r) {
+    if (fromSite) fetch(pptxUrl, { method: 'HEAD' }).then(function (r) {
       if (!r.ok) return;
       pptxLink.href = pptxUrl;
       pptxLink.setAttribute('download', name + '.pptx');

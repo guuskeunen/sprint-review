@@ -89,7 +89,7 @@ test('the PDF download opens the print dialog with every slide as a page', async
   }
 });
 
-test('no Download on the deck opened from your own disk, or inside another page', async (t) => {
+test('the deck opened from your own disk offers PDF and a copy of itself beside Edit, and no Download inside another page', async (t) => {
   const browser = await chrome();
   if (!browser) return t.skip('no Chrome');
   await browser.close();
@@ -101,8 +101,23 @@ test('no Download on the deck opened from your own disk, or inside another page'
     const page = await local!.newPage();
     await page.goto(pathToFileURL(file).href);
     await page.waitForTimeout(200);
-    assert.equal(await page.evaluate(visible('.download-button')), false);
+    assert.equal(await page.evaluate(visible('.download-button')), true);
     assert.equal(await page.evaluate(visible('.edit-button')), true);
+    // Side by side, not on top of each other.
+    const [download, edit] = await Promise.all([page.locator('.download-button').boundingBox(), page.locator('.edit-button').boundingBox()]);
+    assert.ok(download!.x + download!.width <= edit!.x);
+    await page.click('.download-button');
+    assert.equal(await page.evaluate(visible('.download-menu [data-get="pdf"]')), true);
+    assert.equal(await page.evaluate(visible('.download-menu [data-get="pptx"]')), false);
+    const html = page.locator('.download-menu [data-get="html"]');
+    const href = (await html.getAttribute('href')) ?? '';
+    assert.match(href, /^blob:/);
+    assert.match((await html.getAttribute('download')) ?? '', /\.html$/);
+    // The copy is the deck as it was opened: Edit and Download still hidden, as in the file.
+    const saved = await page.evaluate(async (url) => (await fetch(url)).text(), href);
+    assert.match(saved, /^<!doctype html>/);
+    assert.match(saved, /<button class="download-button"[^>]*hidden/);
+    assert.match(saved, /<button class="edit-button"[^>]*hidden/);
   } finally {
     await local!.close();
   }
