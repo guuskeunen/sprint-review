@@ -126,3 +126,28 @@ test('no Download inside another page', async (t) => {
     await framed.browser.close();
   }
 });
+
+test('downloads are named after the product, the review and its dates, and the buttons are icons', async (t) => {
+  const { fileName } = await import('../../src/deck/plan.ts');
+  const review = { ...sample(), product: 'Excalidraw', organization: '', title: 'Sprint review', from: '2026-11-09', until: '2026-11-27' };
+  assert.equal(fileName(review), 'excalidraw-sprint-review-2026-11-09-to-2026-11-27');
+  assert.equal(fileName({ ...review, organization: 'Café Zoë' }), 'cafe-zoe-sprint-review-2026-11-09-to-2026-11-27', 'accents become plain letters');
+  assert.equal(fileName({ ...review, product: 'the product' }), 'sprint-review-2026-11-09-to-2026-11-27', 'no placeholder name');
+  const s = await served(renderDeck(review, {}), true);
+  if (!s) return t.skip('no Chrome');
+  try {
+    for (const sel of ['.download-button']) {
+      assert.equal(await s.page.locator(sel).getAttribute('aria-label'), 'Download');
+      assert.equal((await s.page.locator(sel).innerText()).trim(), '', 'an icon, no words');
+      assert.equal(await s.page.locator(`${sel} svg`).count(), 1);
+    }
+    await s.page.click('.download-button');
+    assert.equal(await s.page.locator('.download-menu [data-get="pptx"]').getAttribute('download'), 'excalidraw-sprint-review-2026-11-09-to-2026-11-27.pptx');
+    assert.equal(await s.page.locator('.download-menu [data-get="html"]').getAttribute('download'), 'excalidraw-sprint-review-2026-11-09-to-2026-11-27.html');
+    // Save as PDF takes the page title as the file name.
+    const titles = await s.page.evaluate(() => { const before = document.title; window.dispatchEvent(new Event('beforeprint')); const during = document.title; window.dispatchEvent(new Event('afterprint')); return [before, during, document.title]; });
+    assert.deepEqual(titles, ['Sprint review · Excalidraw', 'excalidraw-sprint-review-2026-11-09-to-2026-11-27', 'Sprint review · Excalidraw']);
+  } finally {
+    await s.browser.close();
+  }
+});

@@ -20,7 +20,7 @@ npx @guuskeunen/sprint-review edit sprint-reviews/2026-11-16/review.json
 
 **From the deck:** a deck opened from your disk has an **Edit** button in the top right corner. It opens the editor when it's running; when it isn't, it shows the command that starts it for this deck, ready to copy. Next to it, **Download** gives a PDF (every slide a page, through the print dialog) and the PowerPoint when one was written with the deck (`--pptx`). Published and shared decks show only **Download**, with the deck as one HTML file that works offline too, and the PowerPoint when a `deck.pptx` sits next to the deck.
 
-**Downloading from the editor:** **Download** in the editor's top bar gives a PDF, a PowerPoint and the deck as one HTML file. It saves your edits first, so you get what you see. The PowerPoint is made on the spot, also when the review was written without `--pptx` (it needs `pptxgenjs`, see [PowerPoint](#powerpoint)).
+**Downloading from the editor:** **Download** in the editor's top bar gives a PDF, a PowerPoint and the deck as one HTML file. It saves your edits first, so you get what you see. Every download is named after the product, the review and its dates, such as `excalidraw-sprint-review-2026-11-09-to-2026-11-27.pdf`, so it still says what it is in a colleague's inbox. The PowerPoint is made on the spot, also when the review was written without `--pptx` (it needs `pptxgenjs`, see [PowerPoint](#powerpoint)).
 
 The editor only listens on `127.0.0.1`, and only the page it opened can talk to it. `--port` picks another port (default 4321).
 

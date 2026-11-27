@@ -1,4 +1,4 @@
-import { ICONS, VALUE_ICONS, HOOD_ICON } from './icons-data.ts';
+import { ICONS, VALUE_ICONS, HOOD_ICON, BUTTON_ICONS } from './icons-data.ts';
 
 /** What a theme brings the business. A fixed list, so the model names one and never puts a number on it. */
 export const VALUE_KEYS = ['faster', 'quality', 'less_manual_work', 'less_risk', 'insight'] as const;
@@ -25,6 +25,10 @@ export function svg(paths: string, cls = 'icon'): string {
 
 export function themeIcon(key: string): string {
   return svg((ICONS[key] ?? ICONS.other!).paths);
+}
+
+export function buttonIcon(key: keyof typeof BUTTON_ICONS): string {
+  return svg(BUTTON_ICONS[key]);
 }
 
 export function valueIcon(key: string): string {

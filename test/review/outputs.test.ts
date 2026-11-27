@@ -35,9 +35,9 @@ test('a brand font falls back to a sans-serif stack, never to a variable that po
 
 test('the deck has an Edit button, shown only when opened from disk, in the deck\'s language', () => {
   const html = renderDeck(sample(), {});
-  assert.match(html, /<button class="edit-button" type="button" hidden>Edit<\/button>/);
+  assert.match(html, /<button class="edit-button" type="button" aria-label="Edit" title="Edit" hidden><svg class="icon"/);
   assert.match(html, /location\.protocol === 'file:' && window\.parent === window/);
-  assert.match(renderDeck({ ...sample(), language: 'Dutch' }, {}), />Bewerken<\/button>/);
+  assert.match(renderDeck({ ...sample(), language: 'Dutch' }, {}), /class="edit-button" type="button" aria-label="Bewerken"/);
   for (const script of html.match(/<script>([\s\S]*?)<\/script>/g) ?? []) assert.doesNotThrow(() => new Function(script.slice(8, -9)), 'the deck script compiles');
 });
 

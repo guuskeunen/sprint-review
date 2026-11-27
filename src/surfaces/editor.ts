@@ -13,6 +13,7 @@ import { pptxOf, writeOutputs } from '../review/output.ts';
 import { ICONS } from '../deck/icons-data.ts';
 import { VALUE_KEYS } from '../deck/icons.ts';
 import { labelsFor } from '../deck/i18n.ts';
+import { fileName } from '../deck/plan.ts';
 import { EFFECT_WORDS_MAX, NOTES_WORDS_MAX, POINT_WORDS_MAX, TITLE_WORDS_MAX } from '../ai/writer.ts';
 
 const PAGE = readFileSync(fileURLToPath(new URL('../../assets/editor.html', import.meta.url)), 'utf8');
@@ -84,7 +85,7 @@ export async function startEditor(file: string, config: Config, port = 4321): Pr
       if (get && req.method === 'GET') {
         if (!queryToken) return send(403, 'text/plain', 'Missing token.');
         const review = read();
-        const name = `sprint-review-${review.until}`;
+        const name = fileName(review);
         if (get === 'pptx') {
           const pptx = await pptxOf(review, config);
           res.writeHead(200, { 'content-type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'content-disposition': `attachment; filename="${name}.pptx"`, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' });

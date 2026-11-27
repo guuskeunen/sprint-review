@@ -88,10 +88,10 @@ test('the editor downloads the saved review as a PDF page, a PowerPoint and an H
     assert.match(page, /id="download"/);
     const token = encodeURIComponent(/"token":"([^"]+)"/.exec(page)![1]!);
     for (const kind of ['pdf', 'pptx', 'html']) assert.equal((await fetch(`${editor.url}download/${kind}`)).status, 403, kind);
-    const until = sample().until;
+    const { fileName } = await import('../../src/deck/plan.ts');
     const pptx = await fetch(`${editor.url}download/pptx?token=${token}`);
     assert.equal(pptx.status, 200);
-    assert.match(pptx.headers.get('content-disposition') ?? '', new RegExp(`attachment; filename="sprint-review-${until}\\.pptx"`));
+    assert.equal(pptx.headers.get('content-disposition'), `attachment; filename="${fileName(sample())}.pptx"`);
     assert.equal(Buffer.from(await pptx.arrayBuffer()).subarray(0, 2).toString(), 'PK', 'a PowerPoint is a zip');
     const html = await fetch(`${editor.url}download/html?token=${token}`);
     assert.match(html.headers.get('content-disposition') ?? '', /attachment; filename=".*\.html"/);

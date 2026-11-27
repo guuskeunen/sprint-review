@@ -3,10 +3,10 @@ import { fileURLToPath } from 'node:url';
 import type { Review } from '../types.ts';
 import { fill, labelsFor, localeOf, type Labels } from './i18n.ts';
 import { palette } from './colors.ts';
-import { themeIcon, valueIcon } from './icons.ts';
+import { buttonIcon, themeIcon, valueIcon } from './icons.ts';
 import { imageSize } from './images.ts';
 import { change, trendPoints } from './numbers.ts';
-import { coverName, coverPicture, isWide, numbers, planDeck } from './plan.ts';
+import { coverName, coverPicture, fileName, isWide, numbers, planDeck } from './plan.ts';
 import type { DeckConfig } from '../config.ts';
 import { fontFaceCss, type FontFace } from '../brand/fonts.ts';
 type PlannedSlide = ReturnType<typeof planDeck>[number];
@@ -309,10 +309,10 @@ ${slides.join('\n\n')}
 
 <div class="progress" aria-hidden="true"></div>
 <div class="counter" aria-live="polite"></div>
-<button class="edit-button" type="button" hidden>${esc(t.edit)}</button>
+<button class="edit-button" type="button" aria-label="${esc(t.edit)}" title="${esc(t.edit)}" hidden>${buttonIcon('edit')}</button>
 <div class="edit-panel" role="dialog" hidden><p>${esc(t.editStart)}</p><code></code><button type="button">${esc(t.copy)}</button></div>
-<button class="download-button" type="button" aria-haspopup="menu" hidden>${esc(t.download)}</button>
-<div class="download-menu" role="menu"${options.pptxBeside ? ' data-pptx-beside' : ''} hidden><button type="button" role="menuitem" data-get="pdf">${esc(t.downloadPdf)}</button><a role="menuitem" data-get="html" download>${esc(t.downloadHtml)}</a><a role="menuitem" data-get="pptx" download hidden>${esc(t.downloadPptx)}</a></div>
+<button class="download-button" type="button" aria-haspopup="menu" aria-label="${esc(t.download)}" title="${esc(t.download)}" hidden>${buttonIcon('download')}</button>
+<div class="download-menu" role="menu" data-file-name="${esc(fileName(review))}"${options.pptxBeside ? ' data-pptx-beside' : ''} hidden><button type="button" role="menuitem" data-get="pdf">${buttonIcon('pdf')}<span>${esc(t.downloadPdf)}</span></button><a role="menuitem" data-get="pptx" download hidden>${buttonIcon('pptx')}<span>${esc(t.downloadPptx)}</span></a><a role="menuitem" data-get="html" download>${buttonIcon('html')}<span>${esc(t.downloadHtml)}</span></a></div>
 <div class="hint" aria-hidden="true"><kbd>←</kbd> <kbd>→</kbd> ${esc(t.hintBrowse)} · <kbd>F</kbd> ${esc(t.hintFullscreen)} · <kbd>P</kbd> ${esc(t.hintPresenter)}${hasNotes ? ` · <kbd>N</kbd> ${esc(t.hintNotes)}` : ''}</div>
 
 <script>
@@ -436,7 +436,11 @@ function script(t: Labels, lang: string): string {
   var onDisk = location.protocol === 'file:';
   if ((onDisk || /^https?:$/.test(location.protocol)) && window.parent === window && downloadButton && downloadMenu) {
     var here = location.href.split('#')[0];
-    var name = (document.title || 'sprint-review').toLowerCase().replace(/[^a-z0-9\u00c0-\u024f]+/g, '-').replace(/^-+|-+$/g, '') || 'sprint-review';
+    var name = downloadMenu.getAttribute('data-file-name') || 'sprint-review';
+    // Save as PDF suggests the page title as the file name: the descriptive name while printing.
+    var shownTitle = document.title;
+    window.addEventListener('beforeprint', function () { document.title = name; });
+    window.addEventListener('afterprint', function () { document.title = shownTitle; });
     var htmlLink = downloadMenu.querySelector('[data-get="html"]');
     var pptxLink = downloadMenu.querySelector('[data-get="pptx"]');
     var pptxUrl = new URL('deck.pptx', here).href;
