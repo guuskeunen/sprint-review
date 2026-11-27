@@ -132,7 +132,7 @@ When a page sends capture to a login page (`/login`, `/signin`, `/auth`), it sto
 | `customer-page.png` | `customer-page` | desktop |
 | `dashboard-mobile-chromium-linux.png` | `dashboard` | phone (Playwright's browser and platform suffix is dropped) |
 
-The screen key turns into a readable name ("customer-page" → "Customer page") unless you set one in `names`. The order of `names` is also the order of the slides.
+The screen key turns into a readable name ("customer-page" → "Customer page") unless you set one in `names`. The writer chooses a theme's picture by that name alone, without seeing the picture, so name a screen after what it shows: "Editor with the minimap open" gets put on the minimap slide, while "Editor" may get left off as too general. The order of `names` is also the order of the slides.
 
 Phone pictures are shown upright, in a phone frame.
 
