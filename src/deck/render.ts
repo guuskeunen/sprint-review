@@ -29,6 +29,8 @@ export interface RenderOptions {
   deck?: DeckConfig;
   /** Font files inside the deck, so the brand fonts show on any laptop. */
   fontFaces?: FontFace[];
+  /** A deck.pptx is written beside the deck: the deck opened from disk offers it under Download. */
+  pptxBeside?: boolean;
 }
 
 /** A font name from a config or a .pptx, quoted, with the theme's own fonts behind it. Anything odd is dropped. */
@@ -310,7 +312,7 @@ ${slides.join('\n\n')}
 <button class="edit-button" type="button" hidden>${esc(t.edit)}</button>
 <div class="edit-panel" role="dialog" hidden><p>${esc(t.editStart)}</p><code></code><button type="button">${esc(t.copy)}</button></div>
 <button class="download-button" type="button" aria-haspopup="menu" hidden>${esc(t.download)}</button>
-<div class="download-menu" role="menu" hidden><button type="button" role="menuitem" data-get="pdf">${esc(t.downloadPdf)}</button><a role="menuitem" data-get="html" download>${esc(t.downloadHtml)}</a><a role="menuitem" data-get="pptx" download hidden>${esc(t.downloadPptx)}</a></div>
+<div class="download-menu" role="menu"${options.pptxBeside ? ' data-pptx-beside' : ''} hidden><button type="button" role="menuitem" data-get="pdf">${esc(t.downloadPdf)}</button><a role="menuitem" data-get="html" download>${esc(t.downloadHtml)}</a><a role="menuitem" data-get="pptx" download hidden>${esc(t.downloadPptx)}</a></div>
 <div class="hint" aria-hidden="true"><kbd>←</kbd> <kbd>→</kbd> ${esc(t.hintBrowse)} · <kbd>F</kbd> ${esc(t.hintFullscreen)} · <kbd>P</kbd> ${esc(t.hintPresenter)}${hasNotes ? ` · <kbd>N</kbd> ${esc(t.hintNotes)}` : ''}</div>
 
 <script>
@@ -426,24 +428,34 @@ function script(t: Labels, lang: string): string {
     });
   }
 
-  // Download: only on a deck opened from a website, where viewers have no file of their own.
-  // PDF prints every slide as a page; HTML is this file, which works offline; PowerPoint when a deck.pptx sits beside it.
+  // Download: on a deck opened from a website, and on the deck you just made, opened from your disk;
+  // never inside another page. PDF prints every slide as a page; HTML is this file, which works offline
+  // (on disk you already have it); PowerPoint when a deck.pptx sits beside it.
   var downloadButton = document.querySelector('.download-button');
   var downloadMenu = document.querySelector('.download-menu');
-  if (/^https?:$/.test(location.protocol) && window.parent === window && downloadButton && downloadMenu) {
+  var onDisk = location.protocol === 'file:';
+  if ((onDisk || /^https?:$/.test(location.protocol)) && window.parent === window && downloadButton && downloadMenu) {
     var here = location.href.split('#')[0];
     var name = (document.title || 'sprint-review').toLowerCase().replace(/[^a-z0-9\u00c0-\u024f]+/g, '-').replace(/^-+|-+$/g, '') || 'sprint-review';
     var htmlLink = downloadMenu.querySelector('[data-get="html"]');
-    htmlLink.href = here;
-    htmlLink.setAttribute('download', name + '.html');
     var pptxLink = downloadMenu.querySelector('[data-get="pptx"]');
     var pptxUrl = new URL('deck.pptx', here).href;
-    fetch(pptxUrl, { method: 'HEAD' }).then(function (r) {
-      if (!r.ok) return;
+    var offerPptx = function () {
       pptxLink.href = pptxUrl;
       pptxLink.setAttribute('download', name + '.pptx');
       pptxLink.hidden = false;
-    }).catch(function () {});
+    };
+    if (onDisk) {
+      // A file can't look for its neighbors, so the deck says itself whether a deck.pptx was written beside it.
+      htmlLink.hidden = true;
+      if (downloadMenu.hasAttribute('data-pptx-beside')) offerPptx();
+      // Edit sits in the corner; Download goes just left of it.
+      if (editButton && !editButton.hidden) downloadButton.style.right = 'calc(2vw + ' + (editButton.offsetWidth + 8) + 'px)';
+    } else {
+      htmlLink.href = here;
+      htmlLink.setAttribute('download', name + '.html');
+      fetch(pptxUrl, { method: 'HEAD' }).then(function (r) { if (r.ok) offerPptx(); }).catch(function () {});
+    }
     var setOpen = function (open) { downloadMenu.hidden = !open; downloadButton.setAttribute('aria-expanded', String(open)); };
     downloadButton.hidden = false;
     downloadButton.setAttribute('aria-expanded', 'false');

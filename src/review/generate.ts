@@ -131,12 +131,12 @@ export async function generate(config: Config, options: GenerateOptions): Promis
 }
 
 /** Render a stored review again: after editing review.json, or after a brand change. */
-export function render(review: Review, config: Config): { html: string; markdown: string } {
+export function render(review: Review, config: Config, options: { pptxBeside?: boolean } = {}): { html: string; markdown: string } {
   // A stored review may have been edited by hand: check it here too, for library users.
   review = validReview(review);
   const brand = resolvedBrand(config);
   return {
-    html: renderDeck(review, { color: brand.color, logo: brand.logo, labels: config.labels, goal: config.goal, theme: config.brand.theme, fonts: brand.fonts, deck: config.deck, fontFaces: fontFaces(config.brand.fontFiles, config.root, (m) => console.error(m)) }),
+    html: renderDeck(review, { color: brand.color, logo: brand.logo, labels: config.labels, goal: config.goal, theme: config.brand.theme, fonts: brand.fonts, deck: config.deck, fontFaces: fontFaces(config.brand.fontFiles, config.root, (m) => console.error(m)), pptxBeside: options.pptxBeside }),
     markdown: renderMarkdown(review, config.labels),
   };
 }

@@ -89,28 +89,40 @@ test('the PDF download opens the print dialog with every slide as a page', async
   }
 });
 
-test('no Download on the deck opened from your own disk, or inside another page', async (t) => {
+test('the deck opened from your own disk offers Download beside Edit: PDF, and PowerPoint when one was written', async (t) => {
   const browser = await chrome();
   if (!browser) return t.skip('no Chrome');
-  await browser.close();
-  const dir = mkdtempSync(join(tmpdir(), 'sprint-review-download-'));
-  const file = join(dir, 'deck.html');
-  writeFileSync(file, renderDeck(sample(), {}));
-  const local = await chrome();
   try {
-    const page = await local!.newPage();
-    await page.goto(pathToFileURL(file).href);
-    await page.waitForTimeout(200);
-    assert.equal(await page.evaluate(visible('.download-button')), false);
-    assert.equal(await page.evaluate(visible('.edit-button')), true);
+    for (const pptxBeside of [false, true]) {
+      const dir = mkdtempSync(join(tmpdir(), 'sprint-review-download-'));
+      const file = join(dir, 'deck.html');
+      writeFileSync(file, renderDeck(sample(), { pptxBeside }));
+      const page = await browser.newPage();
+      await page.goto(pathToFileURL(file).href);
+      await page.waitForTimeout(200);
+      assert.equal(await page.evaluate(visible('.edit-button')), true);
+      assert.equal(await page.evaluate(visible('.download-button')), true);
+      const [edit, download] = await Promise.all(['.edit-button', '.download-button'].map((sel) => page.locator(sel).boundingBox()));
+      assert.ok(download!.x + download!.width <= edit!.x, 'Download sits left of Edit, not on top of it');
+      await page.click('.download-button');
+      assert.equal(await page.evaluate(visible('.download-menu [data-get="pdf"]')), true);
+      assert.equal(await page.evaluate(visible('.download-menu [data-get="html"]')), false, 'the open file is the HTML already');
+      assert.equal(await page.evaluate(visible('.download-menu [data-get="pptx"]')), pptxBeside);
+      if (pptxBeside) assert.equal(await page.locator('.download-menu [data-get="pptx"]').getAttribute('href'), pathToFileURL(join(dir, 'deck.pptx')).href);
+      await page.close();
+    }
   } finally {
-    await local!.close();
+    await browser.close();
   }
+});
+
+test('no Download inside another page', async (t) => {
   const framed = await served(renderDeck(sample(), {}), false, true);
+  if (!framed) return t.skip('no Chrome');
   try {
-    const frame = framed!.page.frames().find((f) => f.url().startsWith(SITE))!;
+    const frame = framed.page.frames().find((f) => f.url().startsWith(SITE))!;
     assert.equal(await frame.evaluate(visible('.download-button')), false);
   } finally {
-    await framed!.browser.close();
+    await framed.browser.close();
   }
 });
