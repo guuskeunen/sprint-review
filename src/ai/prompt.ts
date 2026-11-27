@@ -294,7 +294,7 @@ export function writerTool(c: Config, changedScreens: string[], availableScreens
               screen: {
                 type: 'string',
                 enum: [NO_SCREEN, ...availableScreens],
-                description: `The screenshot on the slide: only a picture that shows this theme's change itself, so the audience sees what the title says. A picture of something nearby is worse than none: choose ${NO_SCREEN} then, and the slide shows the icon.${closeUps.length ? ` Close-ups of one card or panel read far better on a slide than whole pages; prefer them when they fit: ${closeUps.join(', ')}.` : ''} Choose a phone picture only when the theme itself is about working on a phone.`,
+                description: `The screenshot on the slide: only a picture that shows this theme's change itself, so the audience sees what the title says. A picture of something nearby is worse than none: choose ${NO_SCREEN} then, and the slide shows the icon.${closeUps.length ? ` Close-ups of one card or panel read far better on a slide than whole pages; prefer them when one shows the change itself: ${closeUps.join(', ')}.` : ''} Choose a phone picture only when the theme itself is about working on a phone.${pictureGuide(c, availableScreens)}`,
               },
               value: {
                 type: 'string',
@@ -331,6 +331,17 @@ export function writerTool(c: Config, changedScreens: string[], availableScreens
 }
 
 /** The captured pictures of one element (a card, a panel), by the name the writer picks them by. */
+/** What each available picture shows, from screenshots.descriptions: the writer chooses by name otherwise. */
+function pictureGuide(c: Config, availableScreens: string[]): string {
+  const s = c.screenshots;
+  if (s.source === 'none') return '';
+  const lines = Object.entries(s.descriptions).flatMap(([key, about]) => {
+    const name = s.names[key] ?? humanize(key);
+    return availableScreens.filter((a) => a === name || a.startsWith(`${name} (`)).map((a) => `${a}: ${about.replace(/[.\s]+$/, '')}.`);
+  });
+  return lines.length ? ` What each picture shows: ${lines.join(' ')}` : '';
+}
+
 function closeUpScreens(c: Config): string[] {
   const s = c.screenshots;
   if (s.source !== 'capture') return [];
