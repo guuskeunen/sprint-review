@@ -4,7 +4,7 @@ import type { Config } from '../config.ts';
 import type { Review } from '../types.ts';
 import { render, resolvedBrand } from './generate.ts';
 import { renderChecks } from '../deck/markdown.ts';
-import { renderPptx } from '../deck/pptx.ts';
+import { pptxAvailable, renderPptx } from '../deck/pptx.ts';
 
 export interface Written {
   dir: string;
@@ -15,10 +15,11 @@ export interface Written {
   pptx: string | null;
 }
 
-/** Writes everything for one review into a folder: the deck, the content, the summary, the check log and, when asked for, the .pptx. */
+/** Writes everything for one review into a folder: the deck, the content, the summary, the check log and the .pptx (by default when pptxgenjs is installed). */
 export async function writeOutputs(review: Review, config: Config, dir: string, options: { pptx?: boolean } = {}): Promise<Written> {
   mkdirSync(dir, { recursive: true });
-  const pptx = options.pptx ?? config.output.pptx;
+  const want = options.pptx ?? config.output.pptx;
+  const pptx = want === 'auto' ? await pptxAvailable() : want;
   const { html, markdown } = render(review, config, { pptxBeside: pptx });
   const files: Written = {
     dir,

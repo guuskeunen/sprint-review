@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import sharp from 'sharp';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { normalize } from '../../src/config.ts';
@@ -60,13 +60,20 @@ test('render --pptx rebuilds the PowerPoint too', () => {
   assert.match(out, /deck\.pptx/);
 });
 
-test('writeOutputs writes the .pptx only when asked', async () => {
+test('writeOutputs writes the .pptx by default when pptxgenjs is installed, and not when it is turned off', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'out-'));
   const c = normalize({}, dir);
+  assert.equal(c.output.pptx, 'auto');
+  assert.equal(normalize({ output: { pptx: 'auto' } }, dir).output.pptx, 'auto');
+  assert.throws(() => normalize({ output: { pptx: 'sometimes' } }, dir), /output\.pptx/);
   const a = await writeOutputs(sample(), c, join(dir, 'a'));
-  assert.equal(a.pptx, null);
-  const b = await writeOutputs(sample(), c, join(dir, 'b'), { pptx: true });
-  assert.ok(b.pptx && existsSync(b.pptx));
+  assert.ok(a.pptx && existsSync(a.pptx), 'pptxgenjs is a dev dependency here, so auto writes it');
+  assert.match(readFileSync(a.deck, 'utf8'), /role="menu"[^>]*data-pptx-beside/, 'the deck offers the PowerPoint it was written with');
+  const off = await writeOutputs(sample(), normalize({ output: { pptx: false } }, dir), join(dir, 'off'));
+  assert.equal(off.pptx, null);
+  assert.doesNotMatch(readFileSync(off.deck, 'utf8'), /role="menu"[^>]*data-pptx-beside/);
+  const asked = await writeOutputs(sample(), normalize({ output: { pptx: false } }, dir), join(dir, 'asked'), { pptx: true });
+  assert.ok(asked.pptx && existsSync(asked.pptx), '--pptx wins over the config');
 });
 
 test('without an organization the PowerPoint cover and the summary name the product too', async () => {

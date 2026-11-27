@@ -40,7 +40,7 @@ No, on purpose. It runs where your code is, with your key, and produces a file. 
 Any modern browser. No internet: everything is inside the one file.
 
 ### Can I edit the deck in PowerPoint or Keynote?
-Yes: `--pptx` (or `output.pptx: true`) also writes `deck.pptx`, editable, with the speaker notes in the notes pane. Keynote opens it too.
+Yes: with `pptxgenjs` installed, every review also writes `deck.pptx` (`--pptx` for one run, `output.pptx: false` to turn it off), editable, with the speaker notes in the notes pane. Keynote opens it too.
 
 ### Is it free?
 The tool is free and open source (MIT). You pay your model provider for the API calls.

@@ -80,4 +80,4 @@ model:
 output:
   dir: sprint-reviews
   markdown: true
-  pptx: false                            # also write deck.pptx
+  pptx: auto                             # deck.pptx too when pptxgenjs is installed; false turns it off

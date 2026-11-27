@@ -80,7 +80,7 @@ Most AI summary tools hand your history to a model and hope for the best. sprint
 | `review.json` | Everything on the slides. Edit it, then `sprint-review render` rebuilds the deck. |
 | `review.md` | A Markdown summary for a pull request, Slack or an email. |
 | `checks.md` | What the checks corrected, moved or dropped, and what the second reader flagged. |
-| `deck.pptx` | Optional (`--pptx`): the same deck as an editable PowerPoint, with speaker notes. |
+| `deck.pptx` | When `pptxgenjs` is installed: the same deck as an editable PowerPoint, with speaker notes. |
 
 The deck tells the sprint as a story: a cover with your logo and color, the sprint in one sentence, one slide per big theme whose title says what users can do now (with a screenshot when one fits), the smaller themes as cards, before and after slides, what else shipped, the roadmap, usage numbers, and questions for your audience. It follows presentation research: four text sizes, nothing under 24 px, one message per slide. See [how the deck is designed](https://github.com/guuskeunen/sprint-review/blob/main/docs/design.md).
 
@@ -120,7 +120,7 @@ sprint-review --from v1.4.0 --to v1.5.0              # between two tags
 sprint-review edit sprint-reviews/2026-11-16/review.json   # editor beside the live deck
 sprint-review render sprint-reviews/2026-11-16/review.json # rebuild after a hand edit
 sprint-review --pptx --slack                          # also PowerPoint, and post to Slack
-sprint-review --no-edit                               # don't open the editor afterwards
+sprint-review --no-edit                               # don't open the deck and editor afterwards
 sprint-review capture                                 # photograph your staging pages
 sprint-review doctor                                  # check the setup
 ```
@@ -689,7 +689,7 @@ model:
 |---|---|---|
 | `dir` | `sprint-reviews` | Each review goes in `<dir>/<last day of the sprint>/`. `--out` overrides the whole path. |
 | `markdown` | `true` | Also write `review.md`. |
-| `pptx` | `false` | Also write `deck.pptx`, an editable PowerPoint with speaker notes. Needs `pptxgenjs` installed (`npm i -D pptxgenjs`). `--pptx` does the same for one run. |
+| `pptx` | `auto` | Also write `deck.pptx`, an editable PowerPoint with speaker notes. `auto` writes it whenever `pptxgenjs` is installed (`npm i -D pptxgenjs`); `true` requires it, `false` turns it off. `--pptx` asks for it for one run. |
 
 Every run also adds a line to `<dir>/costs.csv`: the dates, the models that answered, the tokens and the estimated cost in US dollars. The CLI prints the run's cost and the total so far.
 
@@ -1131,17 +1131,17 @@ The deck is a draft, but it's written to be presented as it is. Read it through 
 
 ### In the editor
 
-Making a review in a terminal opens it in the editor right away. Later, or for an older review:
+Making a review in a terminal opens the deck in your browser right away, with **Download** to share it as a PDF or PowerPoint and **Edit** to change it. The editor keeps running in the terminal for that button until Ctrl+C. Later, or for an older review:
 
 ```bash
 npx @guuskeunen/sprint-review edit sprint-reviews/2026-11-16/review.json
 ```
 
-`--no-edit` skips the editor; it never opens in CI or without a terminal. The editor opens a local editor in your browser: the content on the left, the live deck on the right. Every change shows in the deck as you type, before you save. Click into a theme and the preview jumps to its slide. Word counts show the same limits the checks use. **Save and rebuild** (or Ctrl/⌘ + S) writes `review.json` and rebuilds `deck.html` next to it (and `deck.pptx` when `output.pptx` is on). Ctrl+C in the terminal stops the editor.
+`--no-edit` opens nothing and starts no editor; neither happens in CI or without a terminal. The editor is a local page in your browser: the content on the left, the live deck on the right. Every change shows in the deck as you type, before you save. Click into a theme and the preview jumps to its slide. Word counts show the same limits the checks use. **Save and rebuild** (or Ctrl/⌘ + S) writes `review.json` and rebuilds `deck.html` next to it (and `deck.pptx`, see [PowerPoint](#powerpoint)). Ctrl+C in the terminal stops the editor.
 
 **Open live view** shows the deck on its own in a new window, for a second screen or a call: it follows every edit as you type and the slide you're working on.
 
-**From the deck:** a deck opened from your disk has an **Edit** button in the top right corner. It opens the editor when it's running; when it isn't, it shows the command that starts it for this deck, ready to copy. Next to it, **Download** gives a PDF (every slide a page, through the print dialog) and the PowerPoint when one was written with the deck (`--pptx`). Published and shared decks show only **Download**, with the deck as one HTML file that works offline too, and the PowerPoint when a `deck.pptx` sits next to the deck.
+**From the deck:** a deck opened from your disk has an **Edit** button in the top right corner. It opens the editor when it's running; when it isn't, it shows the command that starts it for this deck, ready to copy. Next to it, **Download** gives a PDF (every slide a page, through the print dialog) and the PowerPoint when one was written with the deck (by default, when `pptxgenjs` is installed). Published and shared decks show only **Download**, with the deck as one HTML file that works offline too, and the PowerPoint when a `deck.pptx` sits next to the deck.
 
 **Downloading from the editor:** **Download** in the editor's top bar gives a PDF, a PowerPoint and the deck as one HTML file. It saves your edits first, so you get what you see. Every download is named after the product, the review and its dates, such as `excalidraw-sprint-review-2026-11-09-to-2026-11-27.pdf`, so it still says what it is in a colleague's inbox. The PowerPoint is made on the spot, also when the review was written without `--pptx` (it needs `pptxgenjs`, see [PowerPoint](#powerpoint)).
 
@@ -1201,7 +1201,7 @@ npx @guuskeunen/sprint-review render sprint-reviews/2026-11-16/review.json
 
 ## PowerPoint
 
-Some teams present from PowerPoint or Keynote, or want to add a slide by hand. Add `--pptx` (or set `output.pptx: true`) and `deck.pptx` is written next to the deck: the same slides, editable, with the speaker notes in the notes pane. It needs `pptxgenjs` (`npm i -D pptxgenjs`). `render` and the editor rebuild it too when `output.pptx` is on.
+Some teams present from PowerPoint or Keynote, or want to add a slide by hand. When `pptxgenjs` is installed (`npm i -D pptxgenjs`), `deck.pptx` is written next to the deck with every review: the same slides, editable, with the speaker notes in the notes pane. That's `output.pptx: auto`, the default; `false` turns it off, `true` makes a missing `pptxgenjs` an error, and `--pptx` asks for it for one run. `render` and the editor rebuild it too.
 
 `npm audit` may then report `image-size`: `pptxgenjs` lists it as a dependency but never calls it, so the advisory doesn't reach sprint-review, and only a `pptxgenjs` release can remove it. To clear the report, add this to your `package.json`:
 
@@ -2040,7 +2040,7 @@ No, on purpose. It runs where your code is, with your key, and produces a file. 
 Any modern browser. No internet: everything is inside the one file.
 
 ### Can I edit the deck in PowerPoint or Keynote?
-Yes: `--pptx` (or `output.pptx: true`) also writes `deck.pptx`, editable, with the speaker notes in the notes pane. Keynote opens it too.
+Yes: with `pptxgenjs` installed, every review also writes `deck.pptx` (`--pptx` for one run, `output.pptx: false` to turn it off), editable, with the speaker notes in the notes pane. Keynote opens it too.
 
 ### Is it free?
 The tool is free and open source (MIT). You pay your model provider for the API calls.
