@@ -98,7 +98,7 @@ Take today's pictures:
 npx @guuskeunen/sprint-review capture
 ```
 
-You rarely need to: making a review takes today's pictures first when its sprint ends today and there are none yet (`onReview: false` turns that off). Those are this review's *after* and the next review's *before*. If they can't be taken (logged out, the app is down), the review says so and goes on with the pictures there are. Keep the storage folder between runs: commit it, or cache it in CI. The first run has nothing to compare with, so its pictures only show on theme slides.
+You rarely need to: making a review takes today's pictures first when its sprint ends today and there are none yet (`onReview: false` turns that off). Those are this review's *after* and the next review's *before*. If they can't be taken (logged out, the app is down), the review says so and goes on with the pictures there are. Keep the storage folder between runs: commit it, or cache it in CI. The first run has nothing to compare with, so its pictures only show on theme slides. A review only uses pictures taken by the sprint's last day, since later ones can show work from after it. When all of them are later, it says so.
 
 ### Logging in
 

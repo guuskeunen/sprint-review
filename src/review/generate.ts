@@ -85,6 +85,7 @@ export async function generate(config: Config, options: GenerateOptions): Promis
   const changed = await shots.changed();
   const available = shots.available();
   if (config.screenshots.source !== 'none') step(`${changed.length} screen${changed.length === 1 ? '' : 's'} changed, ${available.size} picture${available.size === 1 ? '' : 's'} available`);
+  if (shots.note) step(shots.note);
 
   step(`Writing the slides with ${config.model.name}${config.model.provider === 'anthropic' ? '' : ` via ${config.model.provider}`}`);
   const meter = metered(options.model);

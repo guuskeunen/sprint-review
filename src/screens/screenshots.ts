@@ -22,6 +22,8 @@ export interface Screens {
   picture(key: string, device: Device): Buffer | null;
   /** The readable name of a screen key. */
   name(key: string): string;
+  /** Why pictures that exist were left out, when the run would otherwise just say there are none. */
+  note?: string;
 }
 
 /**
@@ -63,6 +65,7 @@ export function screens(config: ScreenshotConfig, root: string, history: History
   let startPics: Map<string, () => Buffer | null>;
   let endPics: Map<string, () => Buffer | null>;
   let firstInRange: (id: string) => Buffer | null = () => null;
+  let note: string | undefined;
   let changedIds: string[];
 
   if (config.source === 'git') {
@@ -99,6 +102,9 @@ export function screens(config: ScreenshotConfig, root: string, history: History
     const days = existsSync(base) ? readdirSync(base).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort() : [];
     const beforeDay = [...days].reverse().find((d) => d < from) ?? null;
     const afterDay = [...days].reverse().find((d) => d <= until && d !== beforeDay) ?? null;
+    const later = afterDay ? undefined : days.find((d) => d > until);
+    // A picture taken after the sprint can show work from after it, so it isn't used; say so instead of "0 pictures".
+    if (later) note = `Screenshots from ${later} are left out: they were taken after the sprint's end (${until}). Take them by its last day, or end the review on ${later} or later.`;
     startPics = beforeDay ? folderPics(join(base, beforeDay)) : new Map();
     endPics = afterDay ? folderPics(join(base, afterDay)) : new Map();
     changedIds = lightIds(endPics).filter((id) => startPics.has(id) || startPics.has(`${id}|dark`));
@@ -133,6 +139,7 @@ export function screens(config: ScreenshotConfig, root: string, history: History
 
   return {
     name,
+    ...(note ? { note } : {}),
     async changed() {
       const out: ChangedScreen[] = [];
       for (const id of byScreenOrder(changedIds)) {
