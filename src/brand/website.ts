@@ -1,5 +1,6 @@
 import sharp from 'sharp';
 import type { Brand } from './brand.ts';
+import { fontMime, MAX_FONT_BYTES, type FontFace } from './fonts.ts';
 import type { Config } from '../config.ts';
 
 const TIMEOUT_MS = 15_000;
@@ -7,6 +8,8 @@ const MAX_BYTES = 3_000_000;
 const MAX_SHEETS = 5;
 const MAX_PARSE = 500_000;
 const USER_AGENT = 'Mozilla/5.0 (compatible; sprint-review; +https://github.com/guuskeunen/sprint-review)';
+/** Google Fonts sends woff2 only to a browser it knows. */
+const BROWSER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
 const GENERIC_FONTS = /^(ui-[\w-]+|system-ui|-apple-system|BlinkMacSystemFont|sans-serif|serif|monospace|cursive|fantasy|inherit|initial|var\(.*)$/i;
 
 /** brand.from is a website when it starts with http:// or https://. */
@@ -18,7 +21,7 @@ const cache = new Map<string, Promise<Brand>>();
 
 /**
  * The config with what it leaves out of the brand taken from the website in brand.from: color,
- * logo and fonts the config sets itself win. The site is read once per run; a config without a
+ * logo, fonts and font files the config sets itself win. The site is read once per run; a config without a
  * website comes back unchanged.
  */
 export async function withWebsiteBrand(config: Config, fetchImpl: typeof fetch = fetch): Promise<Config> {
@@ -34,6 +37,7 @@ export async function withWebsiteBrand(config: Config, fetchImpl: typeof fetch =
       color: config.brand.color ?? site.color,
       logo: config.brand.logo ?? site.logo,
       fonts: { heading: config.brand.fonts.heading ?? site.fonts.heading, body: config.brand.fonts.body ?? site.fonts.body },
+      fontFaces: (site.fontFaces ?? []).filter((f) => !config.brand.fontFiles[f.family]),
     },
   };
 }
@@ -41,7 +45,7 @@ export async function withWebsiteBrand(config: Config, fetchImpl: typeof fetch =
 /**
  * Takes the look of a website: its brand color from the stylesheet (a --brand or --primary
  * variable, or the theme-color), its heading and body fonts from --font-heading/--font-display
- * and --font-sans/--font-body, and its logo (a logo image or SVG, in the header first, never from a wall of client logos; else its largest
+ * and --font-sans/--font-body with their files (so the deck carries them), and its logo (a logo image or SVG, in the header first, never from a wall of client logos; else its largest
  * icon). Grays, white and black are passed over as brand colors.
  */
 export async function brandFromWebsite(url: string, fetchImpl: typeof fetch = fetch): Promise<Brand> {
@@ -57,7 +61,8 @@ export async function brandFromWebsite(url: string, fetchImpl: typeof fetch = fe
     if (sheet) css.push(sheet.body.subarray(0, MAX_PARSE).toString('utf8'));
   }
   const styles = css.join('\n');
-  return { color: brandColor(html, styles), fonts: { heading: font(styles, ['heading', 'display']), body: font(styles, ['body', 'sans']) }, logo: await logo(html, base, fetchImpl) };
+  const fonts = { heading: font(styles, ['heading', 'display']), body: font(styles, ['body', 'sans']) };
+  return { color: brandColor(html, styles), fonts, logo: await logo(html, base, fetchImpl), fontFaces: await fontFiles(html, base, styles, fonts, fetchImpl) };
 }
 
 // ---------------------------------------------------------------- color
@@ -116,6 +121,75 @@ function font(css: string, names: string[]): string | null {
     }
   }
   return null;
+}
+
+/**
+ * The files of the heading and body fonts: the @font-face rules in the site's own stylesheets and
+ * in the Google Fonts stylesheets of those families. Only upright Latin files, one face per file (a
+ * variable font covers its weight range), 2 MB in all.
+ */
+async function fontFiles(html: string, base: string, styles: string, fonts: Brand['fonts'], fetchImpl: typeof fetch): Promise<FontFace[]> {
+  const families = [...new Set([fonts.heading, fonts.body].filter((f): f is string => !!f))];
+  if (!families.length) return [];
+  const wanted = (family: string) => families.find((f) => f.toLowerCase() === family.toLowerCase());
+  const sheets: { css: string; base: string }[] = [{ css: styles, base }];
+  for (const href of googleFontSheets(html, base)) {
+    const named = new URL(href).searchParams.getAll('family').map((f) => f.split(':')[0]!.trim());
+    if (!named.some((f) => wanted(f))) continue;
+    const sheet = await get(href, fetchImpl, BROWSER_AGENT);
+    if (sheet) sheets.push({ css: sheet.body.subarray(0, MAX_PARSE).toString('utf8'), base: sheet.url });
+  }
+  const byFile = new Map<string, { family: string; weight: number; maxWeight: number }>();
+  for (const sheet of sheets) {
+    for (const rule of elementsBetween(sheet.css, '@font-face', '}')) {
+      const family = wanted(prop(rule, 'font-family')?.replace(/^["']|["']$/g, '') ?? '');
+      if (!family || /italic|oblique/i.test(prop(rule, 'font-style') ?? '')) continue;
+      const range = prop(rule, 'unicode-range');
+      if (range && !/U\+0+-0*FF\b/i.test(range)) continue;
+      const src = /url\(\s*["']?([^"')]+\.woff2?(?:[?#][^"')]*)?)["']?\s*\)/i.exec(prop(rule, 'src') ?? '')?.[1];
+      if (!src) continue;
+      const weights = (prop(rule, 'font-weight') ?? '400').replace('normal', '400').replace('bold', '700').split(/\s+/).map(Number).filter((w) => w >= 1 && w <= 1000);
+      const file = absolute(src, sheet.base);
+      const now = byFile.get(file) ?? { family, weight: Math.min(...weights, 1000), maxWeight: 0 };
+      byFile.set(file, { family, weight: Math.min(now.weight, ...weights), maxWeight: Math.max(now.maxWeight, ...weights) });
+    }
+  }
+  const faces: FontFace[] = [];
+  let total = 0;
+  for (const [file, face] of byFile) {
+    const got = await get(file, fetchImpl, BROWSER_AGENT);
+    const mime = got ? fontMime(got.body) : null;
+    if (!got || !mime || total + got.body.length > MAX_FONT_BYTES) continue;
+    total += got.body.length;
+    faces.push({ family: face.family, weight: face.weight, ...(face.maxWeight > face.weight ? { maxWeight: face.maxWeight } : {}), style: 'normal', data: `data:${mime};base64,${got.body.toString('base64')}` });
+  }
+  return faces;
+}
+
+function googleFontSheets(html: string, base: string): string[] {
+  return tags(html, 'link')
+    .filter((t) => /rel=["']?stylesheet/i.test(t))
+    .map((t) => attr(t, 'href'))
+    .filter((h): h is string => !!h && /^https:\/\/fonts\.googleapis\.com\/css2?\?/i.test(absolute(h, base)))
+    .map((h) => absolute(h, base))
+    .slice(0, MAX_SHEETS);
+}
+
+/** The text from each start to the next end, found with indexOf: linear, like tags(). */
+function elementsBetween(text: string, start: string, end: string): string[] {
+  const out: string[] = [];
+  for (let at = text.indexOf(start); at !== -1; at = text.indexOf(start, at + 1)) {
+    const close = text.indexOf(end, at);
+    if (close === -1) break;
+    out.push(text.slice(at + start.length, close));
+  }
+  return out;
+}
+
+/** One property of a CSS rule body. */
+function prop(rule: string, name: string): string | null {
+  const m = new RegExp(`(?:^|[;{\\s])${name}\\s*:\\s*([^;]+)`, 'i').exec(rule);
+  return m ? m[1]!.trim() : null;
 }
 
 // ---------------------------------------------------------------- logo
@@ -255,10 +329,10 @@ function absolute(href: string, base: string): string {
   return new URL(href, base).toString();
 }
 
-async function get(url: string, fetchImpl: typeof fetch): Promise<{ url: string; body: Buffer } | null> {
+async function get(url: string, fetchImpl: typeof fetch, agent = USER_AGENT): Promise<{ url: string; body: Buffer } | null> {
   if (!/^https?:\/\//i.test(url)) return null;
   try {
-    const res = await fetchImpl(url, { headers: { 'user-agent': USER_AGENT }, redirect: 'follow', signal: AbortSignal.timeout(TIMEOUT_MS) });
+    const res = await fetchImpl(url, { headers: { 'user-agent': agent }, redirect: 'follow', signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!res.ok || !res.body) return null;
     // Read in chunks and stop at the limit: a hostile site could send gigabytes (or a gzip bomb).
     const chunks: Buffer[] = [];

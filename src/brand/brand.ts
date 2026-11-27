@@ -1,12 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { extname } from 'node:path';
 import { readZip } from './zip.ts';
+import type { FontFace } from './fonts.ts';
 
 export interface Brand {
   color: string | null;
   fonts: { heading: string | null; body: string | null };
   /** A data URI. */
   logo: string | null;
+  /** The files of the heading and body fonts, from a website. */
+  fontFaces?: FontFace[];
 }
 
 const IMAGE_MIME: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.gif': 'image/gif' };

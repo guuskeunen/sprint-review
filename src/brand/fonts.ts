@@ -5,6 +5,8 @@ import { basename, extname, resolve } from 'node:path';
 export interface FontFace {
   family: string;
   weight: number;
+  /** The top of the weight range a variable font file covers (300 to 800); absent for one weight. */
+  maxWeight?: number;
   style: 'normal' | 'italic';
   /** A data URI. */
   data: string;
@@ -12,7 +14,7 @@ export interface FontFace {
 
 const MIME: Record<string, string> = { '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf' };
 /** The fonts ride inside every deck: keep them to a few weights. */
-const MAX_BYTES = 2 * 1024 * 1024;
+export const MAX_FONT_BYTES = 2 * 1024 * 1024;
 
 /**
  * The font files from brand.fontFiles, by family: `{ Inter: [inter-latin-400-normal.woff2, ...] }`.
@@ -31,7 +33,7 @@ export function fontFaces(files: Record<string, string[]>, root: string, onSkip:
         continue;
       }
       const data = readFileSync(file);
-      if (total + data.length > MAX_BYTES) {
+      if (total + data.length > MAX_FONT_BYTES) {
         onSkip(`Font file left out, the fonts pass 2 MB: ${path}`);
         continue;
       }
@@ -48,6 +50,16 @@ export function fontFaces(files: Record<string, string[]>, root: string, onSkip:
 export function fontFaceCss(faces: FontFace[]): string {
   return faces
     .filter((f) => /^data:font\/(woff2|woff|ttf|otf);base64,[A-Za-z0-9+/=]+$/.test(f.data))
-    .map((f) => `@font-face { font-family: "${f.family.replace(/[^\p{L}\p{N} ._-]/gu, '')}"; font-weight: ${Math.round(f.weight)}; font-style: ${f.style === 'italic' ? 'italic' : 'normal'}; font-display: block; src: url(${f.data}); }`)
+    .map((f) => `@font-face { font-family: "${f.family.replace(/[^\p{L}\p{N} ._-]/gu, '')}"; font-weight: ${Math.round(f.weight)}${f.maxWeight && f.maxWeight > f.weight ? ` ${Math.round(f.maxWeight)}` : ''}; font-style: ${f.style === 'italic' ? 'italic' : 'normal'}; font-display: block; src: url(${f.data}); }`)
     .join('\n');
+}
+
+/** The font type of a file by its first bytes: woff2, woff, ttf or otf; null for anything else. */
+export function fontMime(data: Buffer): string | null {
+  const head = data.subarray(0, 4).toString('latin1');
+  if (head === 'wOF2') return 'font/woff2';
+  if (head === 'wOFF') return 'font/woff';
+  if (head === 'OTTO') return 'font/otf';
+  if (data.subarray(0, 4).equals(Buffer.from([0, 1, 0, 0])) || head === 'true') return 'font/ttf';
+  return null;
 }
