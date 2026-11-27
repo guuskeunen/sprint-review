@@ -162,3 +162,13 @@ test('font files the config sets itself win over the website for that family', a
   const own = await withWebsiteBrand(normalize({ brand: { from: 'https://acme.test', fontFiles: { Inter: ['inter.woff2'] } } }, '/tmp'), s.impl);
   assert.deepEqual(own.brand.fontFaces, []);
 });
+
+test('font variables named the other way round count too: --ui-font, --body-font, --bs-body-font-family', async () => {
+  const fontsOf = async (css: string) => (await brandFromWebsite('https://acme.test/', site({ '/': `<style>${css}</style>` }).impl)).fonts;
+  // excalidraw.com: its interface font is in --ui-font, used as font-family: var(--ui-font).
+  assert.deepEqual(await fontsOf(':root{--ui-font: Assistant, system-ui, sans-serif}body{font-family:var(--ui-font)}'), { heading: null, body: 'Assistant' });
+  assert.deepEqual(await fontsOf(':root{--heading-font:"Playfair Display", serif;--body-font:Lato, sans-serif}'), { heading: 'Playfair Display', body: 'Lato' });
+  assert.deepEqual(await fontsOf(':root{--bs-body-font-family:"Nunito Sans", system-ui}'), { heading: null, body: 'Nunito Sans' });
+  assert.deepEqual(await fontsOf(':root{--font-sans:var(--font-inter), Inter, sans-serif}'), { heading: null, body: 'Inter' }, 'a var() in the list is passed over');
+  assert.deepEqual(await fontsOf(':root{--heading-font-weight:700;--icon-font:"Material Icons"}'), { heading: null, body: null }, 'not a weight, not an icon font');
+});

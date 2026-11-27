@@ -45,7 +45,7 @@ export async function withWebsiteBrand(config: Config, fetchImpl: typeof fetch =
 /**
  * Takes the look of a website: its brand color from the stylesheet (a --brand or --primary
  * variable, or the theme-color), its heading and body fonts from --font-heading/--font-display
- * and --font-sans/--font-body with their files (so the deck carries them), and its logo (a logo image or SVG, in the header first, never from a wall of client logos; else its largest
+ * and --font-sans/--font-body/--ui-font (either way round, with a prefix or not) with their files (so the deck carries them), and its logo (a logo image or SVG, in the header first, never from a wall of client logos; else its largest
  * icon). Grays, white and black are passed over as brand colors.
  */
 export async function brandFromWebsite(url: string, fetchImpl: typeof fetch = fetch): Promise<Brand> {
@@ -61,7 +61,7 @@ export async function brandFromWebsite(url: string, fetchImpl: typeof fetch = fe
     if (sheet) css.push(sheet.body.subarray(0, MAX_PARSE).toString('utf8'));
   }
   const styles = css.join('\n');
-  const fonts = { heading: font(styles, ['heading', 'display']), body: font(styles, ['body', 'sans']) };
+  const fonts = { heading: font(styles, ['heading', 'display']), body: font(styles, ['body', 'sans', 'ui']) };
   return { color: brandColor(html, styles), fonts, logo: await logo(html, base, fetchImpl), fontFaces: await fontFiles(html, base, styles, fonts, fetchImpl) };
 }
 
@@ -113,10 +113,14 @@ function colorful(h: string): boolean {
 
 // ---------------------------------------------------------------- fonts
 
+/**
+ * A font family from a CSS variable, named either way round and with an optional prefix:
+ * --font-sans, --body-font, --ui-font (excalidraw.com), --bs-body-font-family (Bootstrap).
+ */
 function font(css: string, names: string[]): string | null {
   for (const n of names) {
-    for (const m of matches(css, new RegExp(`--font-${n}\\s*:\\s*([^;}]+)`, 'gi'))) {
-      const family = (m[1] ?? '').split(',').map((f) => f.trim().replace(/^["']|["']$/g, '')).find((f) => f && !GENERIC_FONTS.test(f));
+    for (const m of matches(css, new RegExp(`--(?:[a-z0-9]+-)*(?:font-${n}|${n}-font)(?:-family)?\\s*:\\s*([^;}]+)`, 'gi'))) {
+      const family = (m[1] ?? '').split(',').map((f) => f.trim().replace(/^["']|["']$/g, '')).find((f) => f && !GENERIC_FONTS.test(f) && !f.startsWith('var('));
       if (family) return family;
     }
   }
