@@ -6,8 +6,8 @@ import { palette } from './colors.ts';
 import { themeIcon, valueIcon } from './icons.ts';
 import { imageSize } from './images.ts';
 import { change, trendPoints } from './numbers.ts';
-import { coverPicture, isWide, numbers, planDeck } from './plan.ts';
-import { UNNAMED_PRODUCT, type DeckConfig } from '../config.ts';
+import { coverName, coverPicture, isWide, numbers, planDeck } from './plan.ts';
+import type { DeckConfig } from '../config.ts';
 import { fontFaceCss, type FontFace } from '../brand/fonts.ts';
 type PlannedSlide = ReturnType<typeof planDeck>[number];
 
@@ -81,8 +81,7 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
  */
 export function renderDeck(review: Review, options: RenderOptions = {}): string {
   const t = labelsFor(review.language, options.labels);
-  // Who or what the deck is about: the organization, else the product (not the placeholder for none).
-  const org = review.organization || (review.product && review.product !== UNNAMED_PRODUCT ? review.product : '');
+  const org = coverName(review);
   const color = options.color && /^#[0-9a-fA-F]{6}$/.test(options.color) ? options.color : null;
   const logo = options.logo && /^data:image\/(png|jpeg|svg\+xml|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(options.logo) ? options.logo : null;
   const goal = options.goal ?? null;

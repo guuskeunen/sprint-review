@@ -68,3 +68,11 @@ test('writeOutputs writes the .pptx only when asked', async () => {
   const b = await writeOutputs(sample(), c, join(dir, 'b'), { pptx: true });
   assert.ok(b.pptx && existsSync(b.pptx));
 });
+
+test('without an organization the PowerPoint cover and the summary name the product too', async () => {
+  const { renderMarkdown } = await import('../../src/deck/markdown.ts');
+  const review = { ...sample(), organization: '', product: 'Excalidraw' };
+  const cover = readZip(await renderPptx(review)).get('ppt/slides/slide1.xml')!().toString('utf8');
+  assert.match(cover, /<a:t>EXCALIDRAW<\/a:t>|<a:t>Excalidraw<\/a:t>/);
+  assert.match(renderMarkdown(review), /^_.* · Excalidraw_$/m);
+});
