@@ -147,6 +147,31 @@ test('Bedrock: Converse with a forced tool, signed with a key or an API token', 
   assert.throws(() => clientFor({ provider: 'bedrock', name: 'm', fallback: null }, { AWS_BEARER_TOKEN_BEDROCK: 'tok' }), /region/);
 });
 
+test('every client sends pictures in its own format, before the text', async () => {
+  const withImage: ModelRequest = { ...request, images: [{ mediaType: 'image/jpeg', data: 'QUJD' }] };
+
+  const claude = recorder({ model: 'c', content: [{ type: 'tool_use', name: 'presentation', input: {} }], usage: {} });
+  await new AnthropicClient('k', 'c', null, claude.impl).ask(withImage);
+  const parts = claude.calls[0]!.body.messages[0].content;
+  assert.deepEqual(parts[0], { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: 'QUJD' } });
+  assert.deepEqual(parts.slice(1).map((p: { text: string }) => p.text), ['a', 'b']);
+
+  for (const mode of ['tools', 'json'] as const) {
+    const openai = recorder(chat({ tool_calls: [{ function: { name: 'presentation', arguments: '{}' } }] }));
+    await new OpenAIClient('k', 'g', null, openai.impl, undefined, { mode }).ask(withImage);
+    assert.deepEqual(openai.calls[0]!.body.messages[1].content, [{ type: 'text', text: 'a\n\nb' }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,QUJD' } }], mode);
+  }
+
+  const bedrock = recorder({ output: { message: { content: [{ toolUse: { name: 'presentation', input: {} } }] } }, usage: {} });
+  await new BedrockClient('m', null, { kind: 'token', token: 't' }, 'us-east-1', bedrock.impl).ask(withImage);
+  assert.deepEqual(bedrock.calls[0]!.body.messages[0].content[0], { image: { format: 'jpeg', source: { bytes: 'QUJD' } } });
+
+  // Without pictures the text goes as before: one string.
+  const plain = recorder(chat({ tool_calls: [{ function: { name: 'presentation', arguments: '{}' } }] }));
+  await new OpenAIClient('k', 'g', null, plain.impl).ask(request);
+  assert.equal(plain.calls[0]!.body.messages[1].content, 'a\n\nb');
+});
+
 test('doctor checks the key per provider and whether a local server answers', async () => {
   const dir = demoRepo();
   const gem = await doctorChecks(normalize({ model: { provider: 'gemini', name: 'g' } }, dir), dir, {});

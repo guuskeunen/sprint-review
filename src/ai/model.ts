@@ -6,9 +6,17 @@ export interface ToolSpec {
   input_schema: Record<string, unknown>;
 }
 
+/** A picture sent with a request, for models that read images: base64, without the data: prefix. */
+export interface ModelImage {
+  mediaType: 'image/png' | 'image/jpeg';
+  data: string;
+}
+
 export interface ModelRequest {
   system: string;
   messages: string[];
+  /** Pictures for the model to look at, sent before the messages. */
+  images?: ModelImage[];
   tool: ToolSpec;
   maxTokens: number;
 }
@@ -120,7 +128,7 @@ export class AnthropicClient implements ModelClient {
       model,
       max_tokens: request.maxTokens,
       system: withToolInstruction(request),
-      messages: [{ role: 'user', content: request.messages.map((text) => ({ type: 'text', text })) }],
+      messages: [{ role: 'user', content: [...(request.images ?? []).map((i) => ({ type: 'image', source: { type: 'base64', media_type: i.mediaType, data: i.data } })), ...request.messages.map((text) => ({ type: 'text', text }))] }],
       // Strict: the arguments always match the schema. Without it, a large answer sometimes came
       // back with a list as broken JSON text.
       tools: [{ ...request.tool, strict: true }],
@@ -283,7 +291,7 @@ export class OpenAIClient implements ModelClient {
         ...(this.options.keyRequired ? { max_completion_tokens: request.maxTokens } : { max_tokens: request.maxTokens }),
         messages: [
           { role: 'system', content: `${request.system}\n\n${request.tool.description}\nAnswer with one JSON object and nothing else. It must match this JSON schema:\n${JSON.stringify(request.tool.input_schema)}` },
-          { role: 'user', content: request.messages.join('\n\n') },
+          { role: 'user', content: userContent(request) },
         ],
         response_format: { type: 'json_schema', json_schema: { name: request.tool.name, schema: request.tool.input_schema, strict: false } },
         ...effort,
@@ -294,7 +302,7 @@ export class OpenAIClient implements ModelClient {
       max_completion_tokens: request.maxTokens,
       messages: [
         { role: 'system', content: request.system },
-        { role: 'user', content: request.messages.join('\n\n') },
+        { role: 'user', content: userContent(request) },
       ],
       tools: [{ type: 'function', function: { name: request.tool.name, description: request.tool.description, parameters: request.tool.input_schema } }],
       tool_choice: toolChoice === 'function' ? { type: 'function', function: { name: request.tool.name } } : toolChoice,
@@ -347,6 +355,13 @@ export class OpenAIClient implements ModelClient {
     }
     throw last instanceof Error ? last : new ModelError(String(last));
   }
+}
+
+/** The user turn: plain text, or text and pictures as parts when there are pictures. */
+function userContent(request: ModelRequest): string | Record<string, unknown>[] {
+  const text = request.messages.join('\n\n');
+  if (!request.images?.length) return text;
+  return [{ type: 'text', text }, ...request.images.map((i) => ({ type: 'image_url', image_url: { url: `data:${i.mediaType};base64,${i.data}` } }))];
 }
 
 /** A 400 that says the endpoint or model takes no tool calls (or not with its settings). */
