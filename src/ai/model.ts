@@ -1,3 +1,5 @@
+import { readBody, readMessage, StreamError, type AnthropicMessage } from './stream.ts';
+
 export interface ToolSpec {
   name: string;
   description: string;
@@ -82,7 +84,11 @@ export function extractJson(text: string | null | undefined): Record<string, unk
 }
 
 const API = 'https://api.anthropic.com/v1/messages';
+/** Time limit of a call that does not stream (the OpenAI-compatible endpoints). */
 const TIMEOUT_MS = 180_000;
+/** The Anthropic answer streams, so a long one is fine as long as bytes keep coming. */
+const IDLE_MS = 90_000;
+const TOTAL_MS = 900_000;
 const RETRIES = 3;
 
 /** The Anthropic Messages API, asked to answer through one tool, with retries and a fallback model. */
@@ -120,27 +126,49 @@ export class AnthropicClient implements ModelClient {
       tools: [{ ...request.tool, strict: true }],
       // Claude Opus 5.5, Sonnet 5.5 and later refuse a forced tool (400), so the prompt asks for it.
       tool_choice: { type: 'auto' },
+      // Streamed, so the connection is never quiet while the answer is written: a VPN or proxy
+      // that drops an idle connection after a minute otherwise ends the call with "fetch failed".
+      stream: true,
     });
     let last: unknown;
     for (let attempt = 0; attempt < RETRIES; attempt++) {
+      const abort = new AbortController();
+      const total = setTimeout(() => abort.abort(new Error(`Anthropic API: no answer within ${TOTAL_MS / 60_000} minutes`)), TOTAL_MS);
+      let idle = setTimeout(() => {}, 0);
+      const alive = () => {
+        clearTimeout(idle);
+        idle = setTimeout(() => abort.abort(new Error(`Anthropic API: the connection was silent for ${IDLE_MS / 1000} seconds`)), IDLE_MS);
+      };
       try {
+        alive();
         const res = await this.fetchImpl(API, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'x-api-key': this.apiKey, 'anthropic-version': '2023-06-01' },
           body,
-          signal: AbortSignal.timeout(TIMEOUT_MS),
+          signal: abort.signal,
         });
-        const text = await res.text();
-        if (!res.ok) {
-          const err = new ModelError(`Anthropic API ${res.status}: ${text.slice(0, 300)}`);
-          if (res.status === 429 || res.status >= 500) {
-            last = err;
+        const text = await readBody(res, alive);
+        let failure: ModelError | null = null;
+        let status = res.status;
+        let data: AnthropicMessage = {};
+        if (!res.ok) failure = new ModelError(`Anthropic API ${res.status}: ${text.slice(0, 300)}`);
+        else {
+          try {
+            data = readMessage(text);
+          } catch (e) {
+            if (!(e instanceof StreamError)) throw e;
+            status = e.status;
+            failure = new ModelError(`Anthropic API ${e.status}: ${e.message.slice(0, 300)}`);
+          }
+        }
+        if (failure) {
+          if (status === 429 || status >= 500) {
+            last = failure;
             await sleep(retryAfter(res) ?? 2 ** attempt * 2000);
             continue;
           }
-          throw err;
+          throw failure;
         }
-        const data = JSON.parse(text) as { content?: { type: string; name?: string; input?: unknown }[]; stop_reason?: string; model?: string; usage?: { input_tokens?: number; output_tokens?: number } };
         const block = data.content?.find((b) => b.type === 'tool_use' && b.name === request.tool.name);
         const answerText = data.content?.filter((b) => b.type === 'text').map((b) => (b as { text?: string }).text ?? '').join('\n') ?? '';
         const toolInput = block && typeof block.input === 'object' && block.input !== null ? (block.input as Record<string, unknown>) : extractJson(answerText);
@@ -155,6 +183,9 @@ export class AnthropicClient implements ModelClient {
         if (e instanceof ModelError && !/Anthropic API (429|5\d\d)/.test(e.message)) throw e;
         last = e;
         if (attempt < RETRIES - 1) await sleep(2 ** attempt * 2000);
+      } finally {
+        clearTimeout(total);
+        clearTimeout(idle);
       }
     }
     throw last instanceof Error ? last : new ModelError(String(last));

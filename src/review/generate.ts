@@ -92,7 +92,7 @@ export async function generate(config: Config, options: GenerateOptions): Promis
   const roadmap = history.milestones(end, config.roadmap);
   const staged = roadmap.filter((m) => m.stage);
   const requests = history.requests(end, config.feedback);
-  const { written, usage } = await write(meter, config, commits, changed.map((c) => c.name), [...available.keys()], staged.map((m) => `${m.stage === 'now' ? 'Now' : 'Next'}: ${m.text}`), requests);
+  const { written, usage } = await write(meter, config, commits, changed.map((c) => c.name), [...available.keys()], staged.map((m) => `${m.stage === 'now' ? 'Now' : 'Next'}: ${m.text}`), requests, staged.length ? [] : roadmap.map((m) => `${m.done ? '[x]' : '[ ]'} ${m.text}`));
   const cost = costOf(meter.calls, config.model, today());
   const models = [...new Set(meter.calls.map((c) => c.model))];
 

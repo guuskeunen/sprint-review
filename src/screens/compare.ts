@@ -25,26 +25,42 @@ const MAX_FOCUS_AREA = 0.6;
 const GAP = 24;
 /** The band never takes more than this share of the picture's height. */
 const MAX_BAND = 0.4;
+/** A band with less than this share of all changed pixels (an icon that lost a letter) is passed over for a bigger one. */
+const MIN_BAND_SHARE = 0.05;
+/** A phone screen's height over its width: a full-page phone picture is cut to one screen around the change. */
+const PHONE_SHAPE = 844 / 390;
+
+type Rows = Map<number, [number, number, number]>;
 
 /**
- * The box around where the change starts, as fractions of the area shown, with a little room.
- * A new element pushes everything below it down, so every row under it differs too: the band
- * runs from the first changed row to the first gap of unchanged rows, which is usually the new
- * element itself.
+ * The rows where the change starts: the first band of changed rows (ended by a gap of unchanged
+ * rows) that holds a fair share of all changed pixels. A new element pushes everything below it
+ * down, so every row under it differs too; the first big band is usually the new element itself.
  */
-function focusIn(rows: Map<number, [number, number]>, area: { x: number; y: number; w: number; h: number }): Focus | undefined {
+function mainBand(rows: Rows, area: { y: number; h: number }): { y0: number; y1: number } | undefined {
   const ys = [...rows.keys()].filter((y) => y >= area.y && y < area.y + area.h).sort((a, b) => a - b);
   if (!ys.length) return undefined;
-  const y0 = ys[0]!;
-  let y1 = y0;
+  const bands: { y0: number; y1: number; count: number }[] = [];
   for (const y of ys) {
-    if (y - y1 > GAP || y - y0 > area.h * MAX_BAND) break;
-    y1 = y;
+    const band = bands.at(-1);
+    if (band && y - band.y1 <= GAP && y - band.y0 <= area.h * MAX_BAND) {
+      band.y1 = y;
+      band.count += rows.get(y)![2];
+    } else bands.push({ y0: y, y1: y, count: rows.get(y)![2] });
   }
+  const total = bands.reduce((n, b) => n + b.count, 0);
+  const band = bands.find((b) => b.count >= total * MIN_BAND_SHARE) ?? bands[0]!;
+  return { y0: band.y0, y1: band.y1 };
+}
+
+/** The box around where the change starts (see mainBand), as fractions of the area shown, with a little room. */
+function focusIn(rows: Rows, area: { x: number; y: number; w: number; h: number }): Focus | undefined {
+  const band = mainBand(rows, area);
+  if (!band) return undefined;
+  const { y0, y1 } = band;
   let x0 = Infinity, x1 = -Infinity;
-  for (const y of ys) {
-    if (y > y1) break;
-    const [from, until] = rows.get(y)!;
+  for (const [y, [from, until]] of rows) {
+    if (y < y0 || y > y1) continue;
     x0 = Math.min(x0, Math.max(from, area.x));
     x1 = Math.max(x1, Math.min(until, area.x + area.w - 1));
   }
@@ -71,8 +87,7 @@ export async function compareScreens(before: Buffer, after: Buffer, device: Devi
   const top = ignore.top;
 
   let changed = 0;
-  let first: number | null = null;
-  const rows = new Map<number, [number, number]>();
+  const rows: Rows = new Map();
   for (let y = top; y < height; y += 2) {
     for (let x = left; x < width; x += 2) {
       const i = (y * a.width + x) * 4;
@@ -83,9 +98,8 @@ export async function compareScreens(before: Buffer, after: Buffer, device: Devi
         Math.abs(a.data[i + 2]! - b.data[j + 2]!) > TOLERANCE
       ) {
         changed++;
-        first ??= y;
         const row = rows.get(y);
-        rows.set(y, row ? [Math.min(row[0], x), Math.max(row[1], x)] : [x, x]);
+        rows.set(y, row ? [Math.min(row[0], x), Math.max(row[1], x), row[2] + 1] : [x, x, 1]);
       }
     }
   }
@@ -93,12 +107,20 @@ export async function compareScreens(before: Buffer, after: Buffer, device: Devi
   // A page that only grew or shrank below what both show did change, at its end.
   const grew = a.height !== b.height;
   if (changed < MIN_CHANGED_PIXELS && !grew) return { changed: false, before, after };
-  if (device !== 'desktop' || changed < MIN_CHANGED_PIXELS || first === null) {
-    const focus = changed >= MIN_CHANGED_PIXELS ? focusIn(rows, { x: 0, y: 0, w: b.width, h: b.height }) : undefined;
-    return { changed: true, before, after, ...(focus ? { focus } : {}) };
+  const band = changed >= MIN_CHANGED_PIXELS ? mainBand(rows, { y: 0, h: b.height }) : undefined;
+  if (!band) return { changed: true, before, after };
+
+  if (device !== 'desktop') {
+    // One phone screen around the change: it starts a little above it, and never runs past either picture.
+    const height = Math.min(a.height, b.height, Math.round(width * PHONE_SHAPE));
+    const windowTop = Math.max(0, Math.min(band.y0 - Math.round(height / 4), Math.min(a.height, b.height) - height));
+    const [cropBefore, cropAfter] = await Promise.all([crop(before, a.height, 0, windowTop, width, height), crop(after, b.height, 0, windowTop, width, height)]);
+    const shown = cropBefore && cropAfter ? { x: 0, y: windowTop, w: width, h: height } : { x: 0, y: 0, w: b.width, h: b.height };
+    const focus = focusIn(rows, shown);
+    return { changed: true, before: cropBefore && cropAfter ? cropBefore : before, after: cropBefore && cropAfter ? cropAfter : after, ...(focus ? { focus } : {}) };
   }
 
-  const focusTop = Math.max(top, first - FOCUS_MARGIN);
+  const focusTop = Math.max(top, band.y0 - FOCUS_MARGIN);
   let from = width;
   let until = left;
   for (const [y, [rowFrom, rowUntil]] of rows) {
@@ -139,8 +161,8 @@ async function decode(png: Buffer): Promise<{ data: Buffer; width: number; heigh
   }
 }
 
-async function crop(png: Buffer, imageHeight: number, x: number, top: number, width: number): Promise<Buffer | null> {
-  const height = Math.min(FOCUS_HEIGHT, imageHeight - top);
+async function crop(png: Buffer, imageHeight: number, x: number, top: number, width: number, tall = FOCUS_HEIGHT): Promise<Buffer | null> {
+  const height = Math.min(tall, imageHeight - top);
   if (height <= 0 || width <= 0) return null;
   try {
     return await sharp(png).extract({ left: x, top, width, height }).png({ compressionLevel: 9 }).toBuffer();

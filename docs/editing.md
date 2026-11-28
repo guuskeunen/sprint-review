@@ -18,7 +18,7 @@ npx @guuskeunen/sprint-review edit sprint-reviews/2026-11-16/review.json
 
 **Open live view** shows the deck on its own in a new window, for a second screen or a call: it follows every edit as you type and the slide you're working on.
 
-**From the deck:** a deck opened from your disk has an **Edit** button in the top right corner. It opens the editor when it's running; when it isn't, it shows the command that starts it for this deck, ready to copy. Published and shared decks don't show the button; they show **Download** in its place, with a PDF (every slide a page, through the print dialog), the deck as one HTML file that works offline, and the PowerPoint when a `deck.pptx` sits next to the deck.
+**From the deck:** a deck opened from your disk has an **Edit** button in the top right corner. It opens the editor when it's running; when it isn't, it shows the command that starts it for this deck, ready to copy. Published and shared decks don't show the button; they show **Download** in its place, with a PDF (every slide a page, through the print dialog), the deck as one HTML file that works offline, and the PowerPoint when a published `deck.pptx` sits next to the deck. A deck opened from your disk shows **Download** next to Edit, with the PDF and a copy of the deck to pass on.
 
 The editor only listens on `127.0.0.1`, and only the page it opened can talk to it. `--port` picks another port (default 4321).
 
