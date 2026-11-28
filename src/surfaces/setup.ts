@@ -8,6 +8,10 @@ export interface SetupAnswers {
   description: string;
   website: string | null;
   audience: string;
+  /** Only from the MCP server's init_sprint_review; init leaves the template's defaults. */
+  organization?: string;
+  language?: string;
+  branch?: string;
 }
 
 /** Asks one question with a default; an empty answer keeps the default. */
@@ -63,13 +67,16 @@ export async function brandSummary(url: string, fetchImpl: typeof fetch = fetch)
   }
 }
 
-/** The config file: the template with the answers filled in. */
+/** The config file: the template with the answers filled in, as JSON strings so a colon or quote can't break the YAML. Shared by init and the MCP server. */
 export function configText(template: string, a: SetupAnswers): string {
   return template
     .replace('{{name}}', JSON.stringify(a.name))
     .replace('{{description}}', JSON.stringify(a.description))
     .replace('{{audience}}', AUDIENCE_CHOICES.includes(a.audience) ? a.audience : JSON.stringify(a.audience))
-    .replace('{{website}}', a.website ? `from: ${a.website}` : '# from: https://www.example.com      # your website');
+    .replace('{{website}}', a.website ? `from: ${a.website}` : '# from: https://www.example.com      # your website')
+    .replace('organization: ""', `organization: ${JSON.stringify(a.organization ?? '')}`)
+    .replace('language: English', `language: ${a.language ? JSON.stringify(a.language) : 'English'}`)
+    .replace(/ {2}# branch: develop .*/, (line) => (a.branch ? `  branch: ${JSON.stringify(a.branch)}` : line));
 }
 
 function packageJson(dir: string): { name?: string; homepage?: string } | null {

@@ -1,5 +1,5 @@
 import { loadPlaywright } from '../screens/capture.ts';
-import { sprintRange } from '../review/generate.ts';
+import { missedWork, onBranch, sprintRange } from '../review/generate.ts';
 import { existsSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import type { Config } from '../config.ts';
@@ -19,8 +19,13 @@ export async function doctorChecks(config: Config, cwd = process.cwd(), env = pr
   const add = (ok: boolean, text: string, fix?: string) => lines.push({ ok, text, ...(ok || !fix ? {} : { fix }) });
   try {
     // The sprint a review would cover now: a shallow clone that reaches back far enough is fine.
-    new History(config.repo).assertUsable(sprintRange(config.sprint.days));
-    add(true, `Git history readable in ${relative(cwd, config.repo) || '.'}`);
+    const history = new History(config.repo);
+    const range = onBranch(sprintRange(config.sprint.days), config, history);
+    history.assertUsable(range);
+    const at = range.kind === 'dates' && range.at ? `, sprint read on ${range.at}` : '';
+    add(true, `Git history readable in ${relative(cwd, config.repo) || '.'}${at}`);
+    const missed = missedWork(range, config, history);
+    if (missed) add(false, missed.replace(/ Pass --to.*$/, ''), 'Set sprint.branch in the config, or pass --to with that branch.');
   } catch (e) {
     add(false, (e as Error).message, 'Run inside a git repository, or set repo in the config.');
   }
@@ -69,6 +74,13 @@ export async function doctorChecks(config: Config, cwd = process.cwd(), env = pr
   } else {
     const keyEnv = keyEnvFor(provider)!;
     add(!!env[keyEnv], `${keyEnv} is set`, provider === 'anthropic' ? 'Create a key at https://console.anthropic.com and export ANTHROPIC_API_KEY=...' : `export ${keyEnv}=...`);
+    // Set is not working: ask the API about the model, which is free, so a wrong or old key shows here and not mid-run.
+    if (env[keyEnv]) {
+      if (provider === 'anthropic') lines.push(await anthropicKey(env[keyEnv]!, config.model.name, fetchImpl));
+      else if (provider === 'openai' || provider === 'openrouter' || provider === 'gemini' || provider === 'mistral') {
+        lines.push(await compatibleKey(provider, config.model.baseUrl ?? PRESETS[provider].baseUrl!, env[keyEnv]!, config.model.name, fetchImpl));
+      }
+    }
   }
   if (config.slack) add(!!env.SLACK_WEBHOOK_URL, 'SLACK_WEBHOOK_URL is set', 'Create an incoming webhook in Slack and export SLACK_WEBHOOK_URL=...');
   const token = env.GITHUB_TOKEN || env.GH_TOKEN;
@@ -76,4 +88,48 @@ export async function doctorChecks(config: Config, cwd = process.cwd(), env = pr
   const major = Number(process.versions.node.split('.')[0]);
   add(major >= 22, `Node ${process.versions.node}`, 'sprint-review needs Node 22 or newer.');
   return lines;
+}
+
+/** Whether Anthropic takes the key and knows the model: one free request, no tokens. */
+async function anthropicKey(key: string, model: string, fetchImpl: typeof fetch): Promise<DoctorLine> {
+  try {
+    const res = await fetchImpl(`https://api.anthropic.com/v1/models/${encodeURIComponent(model)}`, { headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' }, signal: AbortSignal.timeout(8000) });
+    if (res.ok) return { ok: true, text: `Anthropic accepts the key and knows ${model}` };
+    if (res.status === 401 || res.status === 403) return { ok: false, text: 'Anthropic rejects ANTHROPIC_API_KEY', fix: 'The key is wrong, revoked or from another workspace: create one at https://console.anthropic.com. An MCP server reads the key from the environment it was started in; restart the client after changing it.' };
+    if (res.status === 404) return { ok: false, text: `Anthropic doesn't know the model ${model}`, fix: 'Check model.name in the config.' };
+    return { ok: false, text: `Anthropic answered ${res.status} when checking the key`, fix: 'Try again in a minute; https://status.anthropic.com shows outages.' };
+  } catch {
+    return { ok: false, text: 'Anthropic could not be reached to check the key', fix: 'Check the network. A VPN or proxy that blocks api.anthropic.com also stops a review.' };
+  }
+}
+
+/**
+ * Whether an OpenAI-compatible provider takes the key and lists the model: the model list costs
+ * nothing. OpenRouter lists its models to anyone, so its key is checked at /key. Azure (an address
+ * per deployment) and Bedrock (signed requests) are left at "is set".
+ */
+async function compatibleKey(provider: 'openai' | 'openrouter' | 'gemini' | 'mistral', base: string, key: string, model: string, fetchImpl: typeof fetch): Promise<DoctorLine> {
+  const label = PRESETS[provider].label ?? provider;
+  const url = base.replace(/\/+$/, '');
+  const get = (path: string) => fetchImpl(`${url}${path}`, { headers: { authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(8000) });
+  try {
+    if (provider === 'openrouter') {
+      const res = await get('/key');
+      if (res.status === 401 || res.status === 403) return rejected(label, PRESETS[provider].keyEnv!);
+      if (!res.ok) return { ok: false, text: `${label} answered ${res.status} when checking the key`, fix: 'Try again in a minute.' };
+    }
+    const res = await get('/models');
+    if (res.status === 401 || res.status === 403) return rejected(label, PRESETS[provider].keyEnv!);
+    if (!res.ok) return { ok: false, text: `${label} answered ${res.status} when checking the key`, fix: 'Try again in a minute.' };
+    const data = (await res.json()) as { data?: { id?: string }[] };
+    const ids = (data.data ?? []).map((m) => (m.id ?? '').replace(/^models\//, ''));
+    if (ids.length && !ids.includes(model.replace(/^models\//, ''))) return { ok: false, text: `${label} doesn't list the model ${model}`, fix: 'Check model.name in the config.' };
+    return { ok: true, text: `${label} accepts the key and knows ${model}` };
+  } catch {
+    return { ok: false, text: `${label} could not be reached to check the key`, fix: `Check the network. A VPN or proxy that blocks ${new URL(url).host} also stops a review.` };
+  }
+}
+
+function rejected(label: string, keyEnv: string): DoctorLine {
+  return { ok: false, text: `${label} rejects ${keyEnv}`, fix: 'The key is wrong, revoked or from another account. An MCP server reads the key from the environment it was started in (or the key you gave the Claude Code plugin); restart the client after changing it.' };
 }

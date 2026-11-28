@@ -17,5 +17,14 @@
     "git",
     "mcp"
   ],
-  "skills": "./plugin/skills/"
+  "skills": "./plugin/skills/",
+  "userConfig": {
+    "api_key": {
+      "type": "string",
+      "title": "API key",
+      "description": "The key of the model provider in your sprint-review config: Anthropic by default, or OpenAI, Gemini, Mistral, OpenRouter and others. Leave it empty to use the provider's key from the environment Claude Code starts in (ANTHROPIC_API_KEY, OPENAI_API_KEY, ...), or for a local model.",
+      "sensitive": true,
+      "required": false
+    }
+  }
 }

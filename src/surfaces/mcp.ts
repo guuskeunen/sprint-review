@@ -1,13 +1,14 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { loadConfig, normalize, type Config } from '../config.ts';
+import { configTemplate, findConfigFile, loadConfig, normalize, type Config } from '../config.ts';
+import { configText } from './setup.ts';
 import { withWebsiteBrand } from '../brand/website.ts';
 import { costLine, recordRun } from '../ai/costs.ts';
-import { generate, sprintRange } from '../review/generate.ts';
+import { generate, missedWork, onBranch, rangeFor } from '../review/generate.ts';
 import { History, type Range } from '../git/history.ts';
-import { clientFor } from '../ai/providers.ts';
+import { clientFor, keyEnvFor, type ProviderName } from '../ai/providers.ts';
 import { commitLog } from '../ai/prompt.ts';
 import { writeOutputs } from '../review/output.ts';
 import { doctorChecks } from './doctor.ts';
@@ -23,10 +24,32 @@ const RANGE = {
   since: { type: 'string', pattern: DAY, description: 'First day of the sprint, YYYY-MM-DD. Default: the configured sprint length (two weeks unless set) back from until.' },
   until: { type: 'string', pattern: DAY, description: 'Last day of the sprint, YYYY-MM-DD. Default: today.' },
   from: { type: 'string', description: 'Start after this tag or commit instead of a date, e.g. v1.4.0.' },
-  to: { type: 'string', description: 'End at this tag or commit. Default: HEAD.' },
+  to: { type: 'string', description: 'End at this tag, branch or commit (with from), or the branch the days are counted on (with dates), e.g. origin/develop. Default: sprint.branch from the config, else HEAD.' },
 };
 
 export const TOOLS = [
+  {
+    name: 'init_sprint_review',
+    title: 'Create the config',
+    description:
+      'Create sprint-review.config.yml in the project, so the deck knows the product, its audience, the language and the brand. Ask the user for the product name, one or two sentences on what it is and who uses it, who watches the review, the language of the slides and the brand website first; leave out what they don\'t know. Refuses to replace an existing config. No model call, no cost. Use it when check_sprint_review_setup says there is no config.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        directory: DIR,
+        name: { type: 'string', description: 'The product name, as users call it.' },
+        description: { type: 'string', description: 'One or two sentences on what the product is and who uses it.' },
+        organization: { type: 'string', description: 'The organization, shown on the cover.' },
+        audience: { type: 'string', description: 'Who watches the review: business, executives, customers, team, or a description of your own.' },
+        language: { type: 'string', description: 'The language of the slides, e.g. Dutch, English, de-DE.' },
+        website: { type: 'string', description: 'The brand website (https://...): color, logo and fonts are read from it.' },
+        branch: { type: 'string', description: 'The branch the team merges into, when that is not the one usually checked out, e.g. develop.' },
+      },
+      required: ['name'],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
   {
     name: 'check_sprint_review_setup',
     title: 'Check the setup',
@@ -83,17 +106,20 @@ function configIn(dir: string): Config {
 
 function rangeOf(a: Args, config: Config): Range {
   const s = (k: string) => (typeof a[k] === 'string' && a[k] ? (a[k] as string) : undefined);
-  if (s('from')) return { kind: 'refs', from: s('from')!, to: s('to') ?? 'HEAD' };
-  for (const k of ['since', 'until']) if (s(k) && !/^\d{4}-\d{2}-\d{2}$/.test(s(k)!)) throw new Error(`${k} must be a date like 2026-11-10.`);
-  if (s('since')) return { kind: 'dates', from: s('since')!, until: s('until') ?? new Date().toISOString().slice(0, 10) };
-  return sprintRange(config.sprint.days, s('until'));
+  return rangeFor({ since: s('since'), until: s('until'), from: s('from'), to: s('to') }, config.sprint.days);
 }
 
-/** The folder, when it is a project: it has a sprint-review config or is a git repository. */
+/**
+ * The project a folder belongs to: the folder itself or the nearest one above it with a
+ * sprint-review config or a git repository, so apps/web works as well as the root. A folder in no
+ * project is refused: the server only reads and writes inside one.
+ */
 function project(dir: string): string {
-  const marks = ['.git', 'sprint-review.config.yml', 'sprint-review.config.yaml', 'sprint-review.config.json'];
-  if (!marks.some((m) => existsSync(join(dir, m)))) throw new Error(`${dir} is not inside the project: give the project folder, with a sprint-review config or a git repository.`);
-  return dir;
+  const marks = ['sprint-review.config.yml', 'sprint-review.config.yaml', 'sprint-review.config.json', '.git'];
+  for (let at = dir; ; at = dirname(at)) {
+    if (marks.some((m) => existsSync(join(at, m)))) return at;
+    if (dirname(at) === at) throw new Error(`${dir} is in no project: give a folder in a git repository or with a sprint-review config.`);
+  }
 }
 
 /** The path, when it lies inside root (the project); anything else is refused. */
@@ -108,28 +134,43 @@ export async function callTool(name: string, a: Args, cwd = process.cwd()): Prom
   // An assistant chooses these arguments, and text it read can steer it: the folder must be a
   // project (a config or a git repository), and files are read and written only inside it.
   const dir = project(resolve(cwd, typeof a.directory === 'string' ? a.directory : '.'));
+  if (name === 'init_sprint_review') {
+    const existing = findConfigFile(dir);
+    if (existing) throw new Error(`There is a config already: ${existing}. Edit it instead.`);
+    const s = (k: string) => (typeof a[k] === 'string' && (a[k] as string).trim() ? (a[k] as string).trim() : undefined);
+    if (!s('name')) throw new Error('name is required: the product name, as users call it.');
+    const website = s('website');
+    if (website && !/^https?:\/\//.test(website)) throw new Error('website must start with https://.');
+    const file = join(dir, 'sprint-review.config.yml');
+    writeFileSync(file, configText(configTemplate(), { name: s('name')!, description: s('description') ?? '', organization: s('organization'), audience: s('audience') ?? 'business', language: s('language'), website: website ?? null, branch: s('branch') }));
+    return `Created ${file}. Run check_sprint_review_setup next; the file has comments for everything else (screenshots, limits, labels).`;
+  }
   if (name === 'check_sprint_review_setup') {
-    const lines = await doctorChecks(configIn(dir), dir);
+    const config = configIn(dir);
+    const lines = await doctorChecks(config, dir, withPluginKey(process.env, config.model.provider));
     return lines.map((l) => `${l.ok ? '✓' : '✗'} ${l.text}${l.fix ? `\n  fix: ${l.fix}` : ''}`).join('\n');
   }
   if (name === 'preview_sprint_commits') {
     const config = await withWebsiteBrand(configIn(dir));
-    const range = rangeOf(a, config);
     const history = new History(config.repo);
+    const range = onBranch(rangeOf(a, config), config, history);
     history.assertUsable(range);
     const commits = history.commits(range, config.productPaths, config.ignore, config.limits.commits, config.nonProductTypes);
-    return `${commits.length} commits (${commits.filter((c) => c.product).length} touch product code)\n\n${commitLog(commits).slice(0, 20000)}`;
+    const missed = missedWork(range, config, history);
+    const read = range.kind === 'dates' ? ` on ${range.at ?? 'HEAD'}` : '';
+    return `${commits.length} commits${read} (${commits.filter((c) => c.product).length} touch product code)${missed ? `\n\nWarning: ${missed}` : ''}\n\n${commitLog(commits).slice(0, 20000)}`;
   }
   if (name === 'render_sprint_review') {
     if (typeof a.file !== 'string') throw new Error('file is required.');
     const file = inside(dir, resolve(dir, a.file));
+    if (!existsSync(file)) throw new Error(`No file at ${a.file}. Give the review.json in a review's folder, such as sprint-reviews/2026-11-10/review.json.`);
     const review = validReview(JSON.parse(readFileSync(file, 'utf8')) as Review);
     const out = await writeOutputs(review, await withWebsiteBrand(configIn(dir)), dirname(file));
     return `Rebuilt ${out.deck}`;
   }
   if (name === 'generate_sprint_review') {
     const config = await withWebsiteBrand(configIn(dir));
-    const result = await generate(config, { model: clientFor(config.model), range: rangeOf(a, config) });
+    const result = await generate(config, { model: clientFor(config.model, withPluginKey(process.env, config.model.provider)), range: rangeOf(a, config) });
     const outDir = inside(dir, resolve(config.root, typeof a.out === 'string' ? a.out : join(config.output.dir, result.review.until)));
     const files = await writeOutputs(result.review, config, outDir, { pptx: a.pptx === true ? true : undefined });
     const ledger = recordRun(config, result);
@@ -185,6 +226,19 @@ export async function handle(msg: { id?: number | string | null; method?: string
 }
 
 /** The MCP server over stdio: one JSON message per line in, one per line out. Logs go to stderr. */
+/**
+ * The key the Claude Code plugin asked for when it was enabled (userConfig, kept in the system's
+ * credential store) arrives as SPRINT_REVIEW_API_KEY. It is the key of whichever provider the
+ * project's config names (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, ...), and wins over
+ * the one from the shell, which may be an old one. An empty or unfilled value (${...}) is ignored,
+ * and so is the key for a local model, which needs none.
+ */
+export function withPluginKey(env: NodeJS.ProcessEnv, provider: ProviderName): NodeJS.ProcessEnv {
+  const key = env.SPRINT_REVIEW_API_KEY?.trim();
+  const name = keyEnvFor(provider);
+  return key && !key.startsWith('${') && name ? { ...env, [name]: key } : env;
+}
+
 export function serveMcp(): void {
   const rl = createInterface({ input: process.stdin });
   rl.on('line', (line) => {

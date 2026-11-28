@@ -178,3 +178,50 @@ test('a model that refuses tool calls is asked again in JSON mode, once', async 
   await client.ask(request);
   assert.equal(bodies.length, 3, 'later calls go straight to JSON mode');
 });
+
+test('doctor asks Anthropic whether the key works and the model exists, without spending tokens', async () => {
+  const dir = demoRepo();
+  const config = normalize({ model: { provider: 'anthropic', name: 'claude-sonnet-5-5' } }, dir);
+  const seen: { url: string; key: string | null }[] = [];
+  const answer = (status: number) =>
+    (async (url: string, init: RequestInit) => {
+      seen.push({ url, key: new Headers(init.headers).get('x-api-key') });
+      return new Response('{}', { status });
+    }) as unknown as typeof fetch;
+  const line = async (f: typeof fetch) => (await doctorChecks(config, dir, { ANTHROPIC_API_KEY: 'sk-test' }, f)).find((l) => /Anthropic/.test(l.text))!;
+  assert.deepEqual(await line(answer(200)), { ok: true, text: 'Anthropic accepts the key and knows claude-sonnet-5-5' });
+  assert.deepEqual(seen[0], { url: 'https://api.anthropic.com/v1/models/claude-sonnet-5-5', key: 'sk-test' });
+  const rejected = await line(answer(401));
+  assert.equal(rejected.ok, false);
+  assert.match(rejected.fix ?? '', /restart the client/);
+  assert.match((await line(answer(404))).text, /doesn't know the model claude-sonnet-5-5/);
+  const offline = (async () => { throw new TypeError('fetch failed'); }) as unknown as typeof fetch;
+  assert.match((await line(offline)).fix ?? '', /VPN or proxy/);
+  assert.equal((await doctorChecks(config, dir, {}, answer(200))).some((l) => /Anthropic accepts/.test(l.text)), false, 'no key, no request');
+});
+
+test('doctor checks the key of OpenAI-compatible providers through their free model list, and OpenRouter at /key', async () => {
+  const dir = demoRepo();
+  const seen: string[] = [];
+  const api = (status: number, ids: string[] = ['gpt-5', 'models/gemini-3-pro']) =>
+    (async (url: string, init: RequestInit) => {
+      seen.push(`${url} ${new Headers(init.headers).get('authorization')}`);
+      return new Response(JSON.stringify({ data: ids.map((id) => ({ id })) }), { status });
+    }) as unknown as typeof fetch;
+  const check = async (provider: string, name: string, f: typeof fetch, env: Record<string, string>) =>
+    (await doctorChecks(normalize({ model: { provider, name } }, dir), dir, env, f)).find((l) => /accepts|rejects|doesn't list|could not be reached|answered/.test(l.text));
+  assert.deepEqual(await check('openai', 'gpt-5', api(200), { OPENAI_API_KEY: 'sk-o' }), { ok: true, text: 'OpenAI accepts the key and knows gpt-5' });
+  assert.equal(seen.at(-1), 'https://api.openai.com/v1/models Bearer sk-o');
+  assert.equal((await check('gemini', 'gemini-3-pro', api(200), { GEMINI_API_KEY: 'g' }))?.ok, true, 'Gemini lists models/ ids');
+  assert.match((await check('mistral', 'mistral-large', api(200), { MISTRAL_API_KEY: 'm' }))?.text ?? '', /Mistral doesn't list the model mistral-large/);
+  const rejected = await check('openai', 'gpt-5', api(401), { OPENAI_API_KEY: 'bad' });
+  assert.equal(rejected?.text, 'OpenAI rejects OPENAI_API_KEY');
+  seen.length = 0;
+  assert.equal((await check('openrouter', 'gpt-5', api(200), { OPENROUTER_API_KEY: 'r' }))?.ok, true);
+  assert.deepEqual(seen.map((s) => s.split(' ')[0]), ['https://openrouter.ai/api/v1/key', 'https://openrouter.ai/api/v1/models']);
+  assert.equal((await check('openrouter', 'gpt-5', api(401), { OPENROUTER_API_KEY: 'r' }))?.text, 'OpenRouter rejects OPENROUTER_API_KEY');
+  const azure = normalize({ model: { provider: 'azure', name: 'gpt-5', baseUrl: 'https://x.openai.azure.com/openai/v1' } }, dir);
+  seen.length = 0;
+  await doctorChecks(azure, dir, { AZURE_OPENAI_API_KEY: 'a' }, api(200));
+  assert.equal(seen.length, 0, 'azure stays at "is set": no request');
+});

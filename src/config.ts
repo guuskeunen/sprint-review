@@ -1,6 +1,6 @@
 import { isLocal, PROVIDERS, type ProviderName } from './ai/providers.ts';
 import { readFileSync, existsSync } from 'node:fs';
-import { dirname, resolve, extname } from 'node:path';
+import { dirname, resolve, extname, join } from 'node:path';
 import YAML from 'yaml';
 import type { FontFace } from './brand/fonts.ts';
 
@@ -83,7 +83,8 @@ export interface Config {
     /** Font files read from the website in brand.from, for families fontFiles leaves out. Never set in the config file. */
     fontFaces?: FontFace[];
   };
-  sprint: { days: number };
+  /** branch: the branch the sprint is read from (its origin/ copy when there is one); null reads what is checked out. */
+  sprint: { days: number; branch: string | null };
   /** Folders that hold product code. A commit outside them can only go under the hood. Empty: every commit counts. */
   productPaths: string[];
   /** Commits whose subject matches one of these patterns are left out entirely. */
@@ -180,9 +181,21 @@ const DEFAULT_FILES = ['sprint-review.config.yml', 'sprint-review.config.yaml', 
 
 export class ConfigError extends Error {}
 
-/** Find and read the config: the given path, or the first default file in `cwd`. */
+/**
+ * The config file for a folder: in it, or in a folder above it up to the root of its git
+ * repository, the way git finds .git. So a run from apps/web still reads the project's config.
+ */
+export function findConfigFile(start = process.cwd()): string | null {
+  for (let dir = resolve(start); ; dir = dirname(dir)) {
+    const file = DEFAULT_FILES.map((f) => join(dir, f)).find((f) => existsSync(f));
+    if (file) return file;
+    if (existsSync(join(dir, '.git')) || dirname(dir) === dir) return null;
+  }
+}
+
+/** Find and read the config: the given path, or the first default file in `cwd` or a folder above it in the repository. */
 export function loadConfig(path: string | null, cwd = process.cwd()): Config {
-  const file = path ? resolve(cwd, path) : DEFAULT_FILES.map((f) => resolve(cwd, f)).find((f) => existsSync(f));
+  const file = path ? resolve(cwd, path) : findConfigFile(cwd);
   if (!file) {
     throw new ConfigError(`No config found. Run \`sprint-review init\` to create ${DEFAULT_FILES[0]}.`);
   }
@@ -249,7 +262,7 @@ export function normalize(raw: unknown, root: string): Config {
       },
       fontFiles: Object.fromEntries(Object.entries(obj(brand.fontFiles ?? {}, 'brand.fontFiles')).map(([family, v]) => [family, strList(typeof v === 'string' ? [v] : v, `brand.fontFiles.${family}`)])),
     },
-    sprint: { days: int(sprint.days, 'sprint.days', 14, 1, 120) },
+    sprint: { days: int(sprint.days, 'sprint.days', 14, 1, 120), branch: str(sprint.branch, 'sprint.branch') ?? null },
     productPaths: strList(r.productPaths, 'productPaths'),
     ignore: strList(r.ignore, 'ignore'),
     nonProductTypes: r.nonProductTypes === undefined ? ['ci', 'build', 'test', 'docs', 'chore'] : strList(r.nonProductTypes, 'nonProductTypes').map((t) => t.toLowerCase()),
@@ -466,4 +479,9 @@ export function isLoopback(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** The commented template a new config starts from. */
+export function configTemplate(): string {
+  return readFileSync(new URL('../assets/config.template.yml', import.meta.url), 'utf8');
 }
