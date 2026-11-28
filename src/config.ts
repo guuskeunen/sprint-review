@@ -5,6 +5,9 @@ import YAML from 'yaml';
 import type { FontFace } from './brand/fonts.ts';
 
 /** Who the deck is for. A preset, or your own description. */
+/** The product's name when the config gives none: words for the prompt, never a name on a slide. */
+export const UNNAMED_PRODUCT = 'the product';
+
 export const AUDIENCES = {
   business:
     'Colleagues without a technical background, such as marketing, sales and support. They need to understand what is new and why it matters, in plain words.',
@@ -237,7 +240,7 @@ export function normalize(raw: unknown, root: string): Config {
     root,
     repo: resolve(root, str(r.repo, 'repo') ?? '.'),
     product: {
-      name: str(product.name, 'product.name') ?? 'the product',
+      name: str(product.name, 'product.name') ?? UNNAMED_PRODUCT,
       description: str(product.description, 'product.description') ?? '',
     },
     organization: str(r.organization, 'organization') ?? '',

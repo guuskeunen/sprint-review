@@ -154,6 +154,15 @@ test('the cover title is the review, the period under it has the date, the produ
   assert.match(html, /<title>Sprint review · Northside Cycles<\/title>/);
 });
 
+test('without an organization the product names the cover, so the deck says what it is about', async () => {
+  const { renderDeck } = await import('../../src/deck/render.ts');
+  const html = renderDeck({ ...sample(), title: 'Sprint review', organization: '', product: 'Excalidraw' });
+  assert.match(html, /<p class="eyebrow rise">Excalidraw<\/p>\s*<h1 class="rise"[^>]*>Sprint review<\/h1>/);
+  assert.match(html, /<title>Sprint review · Excalidraw<\/title>/);
+  const unnamed = renderDeck({ ...sample(), title: 'Sprint review', organization: '', product: 'the product' });
+  assert.doesNotMatch(unnamed, /<p class="eyebrow rise">the product<\/p>/, 'not the placeholder name');
+});
+
 test('a strip never goes on the cover, and keeps its points right under it', async () => {
   const sharp = (await import('sharp')).default;
   const png = async (width: number, height: number) => `data:image/png;base64,${(await sharp({ create: { width, height, channels: 3, background: '#eee' } }).png().toBuffer()).toString('base64')}`;
