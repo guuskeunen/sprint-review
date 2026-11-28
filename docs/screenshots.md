@@ -164,12 +164,12 @@ The dark deck uses a dark pair when both the before and the after picture have o
 The writer never sees the screenshots: it chooses one by its name. A close-up named "The 3 Ws" can then land on a theme it only sounds close to. Two ways to fix that:
 
 - **Describe them yourself** in `descriptions`, a line per screen key. Free, and nothing extra is sent.
-- **Let the model look** with `check: true`:
+- **Let the model look**, which it does unless you turn it off:
 
 ```yaml
 screenshots:
   source: capture
-  check: true
+  check: false   # keep the screenshots on this machine
 ```
 
 Before writing, the model says in a line what each picture shows, so the writer chooses by what is on it. After writing, it gets each theme's picture with the slide's text and says whether the picture shows what the slide says. A picture that doesn't is taken off: the slide shows its icon, and `checks.md` says why. A line you wrote in `descriptions` is used as is.

@@ -21,8 +21,8 @@ Only to services you choose and configure, with your own keys:
 
 - **Your model provider** (Anthropic by default; Gemini, OpenAI, Mistral, OpenRouter, Azure or
   Amazon Bedrock, or a local model that sends nothing): the commit messages and file paths, pull
-  request titles and descriptions, and your product description. Screenshots are not sent to the
-  model unless you turn on `screenshots.check`, which sends them (masked) to look at them. What the provider does with it is governed by your agreement with that provider.
+  request titles and descriptions, and your product description. When screenshots are set up, they
+  are sent too (masked), to check each slide's picture; `screenshots.check: false` turns that off. What the provider does with it is governed by your agreement with that provider.
 - **GitHub**, only when `GITHUB_TOKEN` is set: it reads the pull requests merged in the sprint.
 - **Only when you set them up:** your Slack webhook (`--slack`) gets the summary, your own website
   is read for the logo and color (`brand.from`), and your app is opened in Chrome for screenshots.
