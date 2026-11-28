@@ -1,6 +1,6 @@
 import type { Review } from '../types.ts';
 import { fill, labelsFor } from './i18n.ts';
-import { coverName } from './plan.ts';
+import { coverName, roadmapMoves } from './plan.ts';
 
 /**
  * Text from the model or from commits, safe in Markdown: brackets and angle brackets are escaped,
@@ -35,7 +35,11 @@ export function renderMarkdown(review: Review, labels: Record<string, string> = 
     }
   } else if (review.milestones.length) {
     const reached = review.milestones.filter((m) => m.done).length;
-    out.push(`## ${t.roadmapLabel}`, '', fill(t.roadmapReached, { n: reached, total: review.milestones.length }), '', ...review.milestones.map((m) => `- [${m.done ? 'x' : ' '}] ${md(m.text)}`), '');
+    const { moved, outside } = roadmapMoves(review);
+    out.push(`## ${t.roadmapLabel}`, '');
+    if (moved.length) out.push(`${t.roadmapMoved}:`, '', ...moved.map((x) => `- ${md(x.milestone.text)}: ${md(x.themes.join(', '))}`), '');
+    if (outside.length) out.push(`${t.roadmapOutside}: ${md(outside.join(', '))}`, '');
+    out.push(fill(t.roadmapReached, { n: reached, total: review.milestones.length }), '', ...review.milestones.map((m) => `- [${m.done ? 'x' : ' '}] ${md(m.text)}`), '');
   }
   if (review.questions.length) out.push(`## ${t.feedbackTitle}`, '', ...review.questions.map((q) => `- ${md(q)}`), '');
   return out.join('\n');

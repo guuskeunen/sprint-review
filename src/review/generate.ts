@@ -85,6 +85,7 @@ export async function generate(config: Config, options: GenerateOptions): Promis
   const changed = await shots.changed();
   const available = shots.available();
   if (config.screenshots.source !== 'none') step(`${changed.length} screen${changed.length === 1 ? '' : 's'} changed, ${available.size} picture${available.size === 1 ? '' : 's'} available`);
+  if (shots.note) step(shots.note);
 
   step(`Writing the slides with ${config.model.name}${config.model.provider === 'anthropic' ? '' : ` via ${config.model.provider}`}`);
   const meter = metered(options.model);
@@ -92,7 +93,7 @@ export async function generate(config: Config, options: GenerateOptions): Promis
   const roadmap = history.milestones(end, config.roadmap);
   const staged = roadmap.filter((m) => m.stage);
   const requests = history.requests(end, config.feedback);
-  const { written, usage } = await write(meter, config, commits, changed.map((c) => c.name), [...available.keys()], staged.map((m) => `${m.stage === 'now' ? 'Now' : 'Next'}: ${m.text}`), requests);
+  const { written, usage } = await write(meter, config, commits, changed.map((c) => c.name), [...available.keys()], staged.map((m) => `${m.stage === 'now' ? 'Now' : 'Next'}: ${m.text}`), requests, staged.length ? [] : roadmap.map((m) => `${m.done ? '[x]' : '[ ]'} ${m.text}`));
   const cost = costOf(meter.calls, config.model, today());
   const models = [...new Set(meter.calls.map((c) => c.model))];
 
@@ -136,7 +137,7 @@ export function render(review: Review, config: Config): { html: string; markdown
   review = validReview(review);
   const brand = resolvedBrand(config);
   return {
-    html: renderDeck(review, { color: brand.color, logo: brand.logo, labels: config.labels, goal: config.goal, theme: config.brand.theme, fonts: brand.fonts, deck: config.deck, fontFaces: fontFaces(config.brand.fontFiles, config.root, (m) => console.error(m)) }),
+    html: renderDeck(review, { color: brand.color, logo: brand.logo, labels: config.labels, goal: config.goal, theme: config.brand.theme, fonts: brand.fonts, deck: config.deck, fontFaces: [...fontFaces(config.brand.fontFiles, config.root, (m) => console.error(m)), ...(config.brand.fontFaces ?? [])] }),
     markdown: renderMarkdown(review, config.labels),
   };
 }

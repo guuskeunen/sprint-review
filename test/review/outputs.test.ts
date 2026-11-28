@@ -76,3 +76,30 @@ test('without an organization the PowerPoint cover and the summary name the prod
   assert.match(cover, /<a:t>EXCALIDRAW<\/a:t>|<a:t>Excalidraw<\/a:t>/);
   assert.match(renderMarkdown(review), /^_.* · Excalidraw_$/m);
 });
+
+/** The text of each slide of a PowerPoint, in order. */
+async function slideTexts(review: ReturnType<typeof sample>): Promise<string[]> {
+  const entries = readZip(await renderPptx(review));
+  const n = [...entries.keys()].filter((k) => /^ppt\/slides\/slide\d+\.xml$/.test(k)).length;
+  return Array.from({ length: n }, (_, i) => entries.get(`ppt/slides/slide${i + 1}.xml`)!().toString('utf8'));
+}
+
+test('the PowerPoint roadmap shows what the sprint moved and the work outside the roadmap, as the deck does', async () => {
+  const r = sample();
+  r.themes = r.themes.map((th, i) => ({ ...th, milestone: i === 0 || i === 3 ? 4 : i === 1 ? 2 : null }));
+  const roadmap = (await slideTexts(r)).find((x) => x.includes('>Roadmap<') || x.includes('>ROADMAP<'))!;
+  assert.match(roadmap, /What this sprint moved/);
+  assert.match(roadmap, /Text message when the bike is ready/);
+  assert.match(roadmap, /Customer profile · Duplicate customers/);
+  assert.match(roadmap, /Outside the roadmap/i);
+  assert.match(roadmap, /Workshop planner · Look and feel/);
+  assert.match(roadmap, /4 of 6 milestones reached/);
+});
+
+test('the PowerPoint frames the change on a phone picture too', async () => {
+  const r = sample();
+  const phone = `data:image/png;base64,${(await sharp({ create: { width: 390, height: 844, channels: 3, background: '#ffffff' } }).png().toBuffer()).toString('base64')}`;
+  r.screens = [{ ...r.screens[0]!, device: 'phone', before: phone, after: phone, focus: { x: 0.05, y: 0.23, w: 0.78, h: 0.06 } }];
+  const slide = (await slideTexts(r)).find((x) => x.includes(r.screens[0]!.caption ?? r.screens[0]!.name))!;
+  assert.match(slide, /prst="roundRect"[\s\S]*?<a:ln w="28575">/);
+});

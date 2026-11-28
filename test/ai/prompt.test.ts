@@ -49,10 +49,12 @@ test('Dutch slides address the audience as je or jij, never u', () => {
   assert.doesNotMatch(writerSystem(normalize({ language: 'English' }, '/tmp')), /"jij"/);
 });
 
-test('the sprint headline asks for one change, short, in what changed for a user', () => {
+test('the sprint headline sums up the whole sprint for a user, short, not one commit and not a list', () => {
   const system = writerSystem(normalize({}, '/tmp'));
   const rule = system.split('\n\n').find((p) => p.startsWith('The sprint headline'))!;
   assert.match(rule, /at most 10 words/);
-  assert.match(rule, /never two joined with "and"/);
+  assert.match(rule, /the sprint as a whole/);
+  assert.match(rule, /never a single commit or one theme/);
+  assert.match(rule, /never a list of the themes/);
   assert.match(rule, /not how it works or where the data comes from/);
 });

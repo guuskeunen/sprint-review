@@ -89,6 +89,8 @@ export interface WrittenTheme {
   effect: string | null;
   points: string[];
   notes: string | null;
+  /** The milestone (its place in the roadmap) this theme moves forward; null when it is outside the roadmap. Absent when the roadmap wasn't asked. */
+  milestone?: number | null;
 }
 
 export interface WrittenReview {

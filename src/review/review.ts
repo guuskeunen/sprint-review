@@ -21,6 +21,7 @@ export function validReview(v: unknown): Review {
   const text = (v: unknown) => v === null || v === undefined || typeof v === 'string';
   for (const t of r.themes) {
     for (const k of ['effect', 'notes', 'icon', 'value'] as const) if (!text(t[k])) throw new Error(`The ${k} of theme "${t.title}" must be text.`);
+    if (t.milestone !== undefined && t.milestone !== null && !(Number.isInteger(t.milestone) && t.milestone >= 0 && t.milestone < r.milestones.length)) throw new Error(`The milestone of theme "${t.title}" must be the place of a milestone in milestones (from 0), or null.`);
     if (t.layout !== undefined && !(THEME_LAYOUTS as readonly string[]).includes(t.layout)) throw new Error(`The layout of theme "${t.title}" must be one of ${THEME_LAYOUTS.join(', ')}.`);
     if (t.screen?.video !== undefined && !VIDEO_DATA_URI.test(String(t.screen.video))) throw new Error(`The video of theme "${t.title}" must be a data:video/mp4 or data:video/webm URI.`);
     if (t.screen && !IMAGE_DATA_URI.test(String(t.screen.image))) throw new Error(`The picture of theme "${t.title}" must be an image (a data:image URI).`);
