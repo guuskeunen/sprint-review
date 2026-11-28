@@ -574,6 +574,8 @@ Before and after slides, and pictures on theme slides. See the [screenshots guid
 | `before`, `after` | `folder`: two folders with the pictures at the start and end of the sprint. |
 | `pages`, `baseUrl`, `devices`, `mask`, `storageState`, `login`, `wait`, `storage`, `onReview` | `capture`: the tool takes the pictures itself. See [taking screenshots](screenshots.md#option-3-the-tool-takes-them-capture). |
 | `names` | Readable names per screen key. Also sets the order. |
+| `descriptions` | What each picture shows, in a line per screen key: `three-ws: Why to contact this company now`. The model never sees the pictures and chooses one by its name, so a name like "The 3 Ws" can land on the wrong theme; a description lets it choose by content, and leave a slide without a picture when none fits. |
+| `check` | `true` lets the model look at the pictures: it describes each one before writing (a line in `descriptions` wins) and checks the picture each theme chose after, so a picture that doesn't show the slide's change makes way for the icon. Sends the screenshots to your model provider, with `mask` applied; needs a model that reads images. Default `false`. See [letting the model look](screenshots.md#letting-the-model-look-at-the-pictures). |
 | `ignore.left` | Pixels on the left to skip when comparing desktop pictures (a side menu). |
 | `ignore.top` | Pixels at the top to skip (a top bar). |
 
@@ -859,6 +861,29 @@ With `brand.theme: dark`, a light screenshot glares on the black slides. If your
 - **Git or folders:** add the dark picture next to the light one with `-dark` in the name: `planner-desktop-dark.png`.
 
 The dark deck uses a dark pair when both the before and the after picture have one, and the light pair otherwise, so a comparison never mixes the two (that would count every screen as changed). A light picture on the dark deck is dimmed a little.
+
+## Letting the model look at the pictures
+
+The writer never sees the screenshots: it chooses one by its name. A close-up named "The 3 Ws" can then land on a theme it only sounds close to. Two ways to fix that:
+
+- **Describe them yourself** in `descriptions`, a line per screen key. Free, and nothing extra is sent.
+- **Let the model look** with `check: true`:
+
+```yaml
+screenshots:
+  source: capture
+  check: true
+```
+
+Before writing, the model says in a line what each picture shows, so the writer chooses by what is on it. After writing, it gets each theme's picture with the slide's text and says whether the picture shows what the slide says. A picture that doesn't is taken off: the slide shows its icon, and `checks.md` says why. A line you wrote in `descriptions` is used as is.
+
+What it costs and sends:
+
+- **One small call per screen, and one per theme with a picture.** Each picture is scaled down to 1280 pixels wide (the top of a long page). With Gemini or Claude, a few cents per review.
+- **The screenshots go to your model provider,** with your `mask` applied, so use demo data. With Ollama or LM Studio they stay on your machine; pick a model that reads images (Qwen2.5-VL, Llama 3.2 Vision, Gemma 3).
+- **A model that can't read images** leaves the pictures as they are, with a warning in `checks.md`.
+
+`sprint-review doctor` says whether the check is on and where the pictures go.
 
 ## Tips
 
@@ -1567,7 +1592,7 @@ A one-page answer for whoever has to approve sprint-review: what it reads, what 
 ## In short
 
 - **It runs on your machine or in your own CI.** There is no sprint-review server, no account and no telemetry. The author never sees your data.
-- **It sends commit text, not code.** Commit subjects, descriptions and changed file names go to the AI provider you configure, with your own key. Source code, diffs and screenshots never leave.
+- **It sends commit text, not code.** Commit subjects, descriptions and changed file names go to the AI provider you configure, with your own key. Source code and diffs never leave; screenshots only when you turn on `screenshots.check`.
 - **You choose the provider,** including ones your company already approved (Azure OpenAI, Amazon Bedrock) or a local model where nothing leaves your network.
 - **`--dry-run` shows exactly what would be sent,** before anything is.
 
@@ -1576,7 +1601,7 @@ A one-page answer for whoever has to approve sprint-review: what it reads, what 
 | Source | What | When |
 |---|---|---|
 | Your git repository | Commit hashes, dates, subjects, descriptions and changed file names in the range; the roadmap file at the end of the sprint | Always |
-| Screenshot pictures | Pixels, compared locally | When `screenshots` is set |
+| Screenshot pictures | Pixels, compared locally; sent to the model only with `screenshots.check: true` | When `screenshots` is set |
 | Your pages (capture) | Screenshots of the URLs you list, in a local browser | Only with `screenshots.source: capture` |
 | The GitHub API | Title and description of the pull request behind each commit | Only when `GITHUB_TOKEN` or `GH_TOKEN` is set (always in GitHub Actions), and `github.pullRequests` isn't `false` |
 | A usage file | The numbers you put in it | When `usage` is set |
@@ -1585,15 +1610,16 @@ It needs **read access** to the repository only. It writes nothing to git and ne
 
 ## What it sends, and where
 
-Each run makes two or three calls to **one** AI provider: the one in `model.provider`, with the key from your environment.
+Each run makes two or three calls (more with `screenshots.check`) to **one** AI provider: the one in `model.provider`, with the key from your environment.
 
 | Call | Gets |
 |---|---|
 | Writer | Your product description, audience and rules from the config; the commit log described above (up to `model.maxInputChars`); the names of screens |
 | Second reader | Only the text of the slides |
 | Rewrite (when the reader flagged lines) | The text of the slides and the flagged lines |
+| Picture checks (only with `screenshots.check: true`) | One screenshot per call, scaled down to 1280 pixels wide and with your `mask` applied: first to say what it shows, then with one slide's text to say whether it fits |
 
-**Never sent:** source code, diffs, file contents, screenshots or other pictures, usage numbers, environment variables, secrets.
+**Never sent:** source code, diffs, file contents, screenshots or other pictures (unless `screenshots.check` is on), usage numbers, environment variables, secrets.
 
 Commit and pull request text is treated as untrusted: it's wrapped in random markers and the model is told it's data, so a commit message that says "ignore your instructions" is just a commit message. Whatever the model answers goes through checks in code, and anything that can't be traced to a real commit is dropped.
 
@@ -1839,8 +1865,9 @@ The result is one HTML file with everything inline: styles, script, icons, pictu
 - The writer gets: the system prompt (your product description, audience, language, rules), the commit log (hashes, dates, subjects, bodies, up to six file names per commit, pull request titles and descriptions when a token is set) and the names of the screens.
 - The reader gets: the slide text.
 - The rewrite gets: the slide text and the flagged lines with the reader's reasons.
+- Only with `screenshots.check: true`: each screenshot, scaled down, to say what it shows; and each picked screenshot with its slide's text, to say whether it fits.
 
-Never source code, never diffs, never pictures, never usage numbers.
+Never source code, never diffs, never usage numbers, and never pictures unless you turn on `screenshots.check`.
 
 ---
 
@@ -2004,7 +2031,7 @@ The fixed labels ship in English, Dutch, German, French and Spanish. For other l
 Yes: use a local model with Ollama or LM Studio. The slides are plainer than with Claude, but nothing leaves your machine. See [models](models.md#ollama-local) and [security and privacy](security.md).
 
 ### Does it send my code to an AI?
-No. It sends commit messages and file names of the sprint, pull request titles and descriptions when a GitHub token is set, plus your product description. Never source code, diffs, screenshots or usage numbers. See [what is sent](how-it-works.md#what-is-sent-to-the-ai).
+No. It sends commit messages and file names of the sprint, pull request titles and descriptions when a GitHub token is set, plus your product description. Never source code, diffs or usage numbers, and screenshots only when you turn on `screenshots.check`. See [what is sent](how-it-works.md#what-is-sent-to-the-ai).
 
 ### Which AI does it use?
 Anthropic's Claude by default, through your own API key. Also Amazon Bedrock, Azure OpenAI, OpenAI, OpenRouter, Gemini, Mistral, and local models with Ollama or LM Studio: see [models and providers](models.md). With the library you can plug in any model yourself ([custom model client](library.md#your-own-model-client)).

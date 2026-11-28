@@ -96,5 +96,6 @@ The result is one HTML file with everything inline: styles, script, icons, pictu
 - The writer gets: the system prompt (your product description, audience, language, rules), the commit log (hashes, dates, subjects, bodies, up to six file names per commit, pull request titles and descriptions when a token is set) and the names of the screens.
 - The reader gets: the slide text.
 - The rewrite gets: the slide text and the flagged lines with the reader's reasons.
+- Only with `screenshots.check: true`: each screenshot, scaled down, to say what it shows; and each picked screenshot with its slide's text, to say whether it fits.
 
-Never source code, never diffs, never pictures, never usage numbers.
+Never source code, never diffs, never usage numbers, and never pictures unless you turn on `screenshots.check`.

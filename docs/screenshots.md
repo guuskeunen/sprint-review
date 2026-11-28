@@ -159,6 +159,29 @@ With `brand.theme: dark`, a light screenshot glares on the black slides. If your
 
 The dark deck uses a dark pair when both the before and the after picture have one, and the light pair otherwise, so a comparison never mixes the two (that would count every screen as changed). A light picture on the dark deck is dimmed a little.
 
+## Letting the model look at the pictures
+
+The writer never sees the screenshots: it chooses one by its name. A close-up named "The 3 Ws" can then land on a theme it only sounds close to. Two ways to fix that:
+
+- **Describe them yourself** in `descriptions`, a line per screen key. Free, and nothing extra is sent.
+- **Let the model look** with `check: true`:
+
+```yaml
+screenshots:
+  source: capture
+  check: true
+```
+
+Before writing, the model says in a line what each picture shows, so the writer chooses by what is on it. After writing, it gets each theme's picture with the slide's text and says whether the picture shows what the slide says. A picture that doesn't is taken off: the slide shows its icon, and `checks.md` says why. A line you wrote in `descriptions` is used as is.
+
+What it costs and sends:
+
+- **One small call per screen, and one per theme with a picture.** Each picture is scaled down to 1280 pixels wide (the top of a long page). With Gemini or Claude, a few cents per review.
+- **The screenshots go to your model provider,** with your `mask` applied, so use demo data. With Ollama or LM Studio they stay on your machine; pick a model that reads images (Qwen2.5-VL, Llama 3.2 Vision, Gemma 3).
+- **A model that can't read images** leaves the pictures as they are, with a warning in `checks.md`.
+
+`sprint-review doctor` says whether the check is on and where the pictures go.
+
 ## Tips
 
 - **Use made-up data in your test fixtures.** Then the pictures are safe to show anywhere.
