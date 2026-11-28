@@ -182,6 +182,7 @@ Before and after slides, and pictures on theme slides. See the [screenshots guid
 | `before`, `after` | `folder`: two folders with the pictures at the start and end of the sprint. |
 | `pages`, `baseUrl`, `devices`, `mask`, `storageState`, `login`, `wait`, `storage`, `onReview` | `capture`: the tool takes the pictures itself. See [taking screenshots](screenshots.md#option-3-the-tool-takes-them-capture). |
 | `names` | Readable names per screen key. Also sets the order. |
+| `descriptions` | What each picture shows, in a line per screen key: `three-ws: Why to contact this company now`. The model never sees the pictures and chooses one by its name, so a name like "The 3 Ws" can land on the wrong theme; a description lets it choose by content, and leave a slide without a picture when none fits. |
 | `ignore.left` | Pixels on the left to skip when comparing desktop pictures (a side menu). |
 | `ignore.top` | Pixels at the top to skip (a top bar). |
 
