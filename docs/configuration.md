@@ -1,6 +1,6 @@
 # Configuration reference
 
-sprint-review works without a config. A config file makes the deck fit your product, audience and brand.
+sprint-review works without a config. A config file makes the deck fit your product, audience and brand. It is found in the folder you run in or a folder above it, up to the root of the git repository, so a run from `apps/web` reads the project's config; `render` looks from the review's own folder.
 
 ## Where the config lives
 
@@ -29,6 +29,7 @@ goal: One customer page for the front desk
 
 sprint:
   days: 14
+  branch: develop
 
 brand:
   color: "#ea580c"
@@ -118,6 +119,9 @@ The sprint goal. Shown on the cover, and the AI puts the work that served it fir
 
 ### `sprint.days`
 How many days a review covers when you don't pass `--since` or `--from`. Both ends are included, so `14` with today being the 16th covers the 3rd to the 16th. Default `14`.
+
+### `sprint.branch`
+The branch the sprint is read from, whatever is checked out: `origin/develop` when it has been fetched, else the local `develop`. Set it when the team merges into a branch other than the one you usually have checked out. `--to` (or `to` in the MCP server) overrides it for one run. Without it, the review reads what is checked out, and warns in the output and in `checks.md` when `origin/main` or `origin/develop` has commits of the sprint that the checkout lacks. Default: none.
 
 ### `brand`
 

@@ -99,7 +99,7 @@ test('the MCP server only reads and writes inside the project', async () => {
   execFileSync('git', ['init', '-q', dir]);
   writeFileSync(join(dir, 'review.json'), JSON.stringify(sample()));
   await assert.rejects(callTool('render_sprint_review', { file: '../../etc/review.json' }, dir), /inside the project/);
-  await assert.rejects(callTool('render_sprint_review', { file: 'review.json', directory: '/' }, dir), /inside the project/);
+  await assert.rejects(callTool('render_sprint_review', { file: 'review.json', directory: '/' }, dir), /in no project/);
   assert.match(await callTool('render_sprint_review', { file: 'review.json' }, dir), /Rebuilt/);
 });
 

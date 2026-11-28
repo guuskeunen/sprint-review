@@ -69,12 +69,12 @@ export function costOf(calls: Call[], config: ModelConfig, on: string): Cost {
 }
 
 /** A model client that writes down every answer's model and tokens, for the cost of the run. */
-export function metered(model: ModelClient): ModelClient & { calls: Call[] } {
+export function metered(model: ModelClient, progress?: (message: string) => void): ModelClient & { calls: Call[] } {
   const calls: Call[] = [];
   return {
     calls,
     async ask(request: ModelRequest): Promise<ModelAnswer> {
-      const answer = await model.ask(request);
+      const answer = await model.ask(progress ? { ...request, progress } : request);
       calls.push({ model: answer.model, input: answer.usage.input, output: answer.usage.output });
       return answer;
     },
@@ -122,6 +122,13 @@ export interface Run {
   models: string[];
   usage: { input: number; output: number };
   cost: Cost;
+}
+
+/** What the last runs in the ledger cost, oldest first, at most five; empty without a ledger. */
+export function pastCosts(config: Config): number[] {
+  const file = resolve(config.root, config.output.dir, 'costs.csv');
+  if (!existsSync(file)) return [];
+  return readFileSync(file, 'utf8').trim().split('\n').slice(1).map((line) => line.slice(line.lastIndexOf(',') + 1)).filter((v) => v !== '').map(Number).slice(-5);
 }
 
 /** Adds a finished run to the ledger. */

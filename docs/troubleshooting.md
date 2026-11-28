@@ -1,6 +1,8 @@
 # Troubleshooting
 
-Start with `npx @guuskeunen/sprint-review doctor`. It checks the config, the git history, the API key and your Node version, and says how to fix each one.
+Start with `npx @guuskeunen/sprint-review doctor`. It checks the config, the git history (and whether the checkout misses commits of the sprint that `origin/main` or `origin/develop` has), the API key (with Anthropic, OpenAI, Gemini, Mistral and OpenRouter it asks the provider whether the key works and the model exists, which costs nothing; Azure, Bedrock and local models are checked for a key or a running server only) and your Node version, and says how to fix each one.
+
+**`fetch failed` after a few minutes:** the answer streams, so a VPN or proxy that drops quiet connections no longer ends a run. If it still happens, the output says which try failed and why; check that `api.anthropic.com` is reachable.
 
 ### "This checkout's history starts on …" or "has a shallow history"
 The repository was cloned with only part of its history, which is common in CI. A shallow clone is fine as long as it reaches back to before the sprint started (`git clone --shallow-since=<a week before the sprint>`); the error names the date to fetch from. To be safe, fetch everything. In GitHub Actions:

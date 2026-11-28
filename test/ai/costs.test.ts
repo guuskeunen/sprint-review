@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { costOf, metered, priceOf, recordCost } from '../../src/ai/costs.ts';
+import { costOf, metered, pastCosts, priceOf, recordCost } from '../../src/ai/costs.ts';
 import { normalize } from '../../src/config.ts';
 import { clientFor } from '../../src/ai/providers.ts';
 import type { ModelAnswer, ModelClient } from '../../src/ai/model.ts';
@@ -66,4 +66,13 @@ test('every run is added to a cost ledger with the total so far', () => {
 test('model.price must be two non-negative numbers', () => {
   assert.throws(() => model('openai', 'gpt-x', { input: -1, output: 2 }), /model.price/);
   assert.throws(() => model('openai', 'gpt-x', { input: 1 }), /model.price/);
+});
+
+test('the dry run can show what the last runs cost: the last five priced runs from the ledger', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sprint-review-past-'));
+  const config = normalize({}, dir);
+  assert.deepEqual(pastCosts(config), []);
+  mkdirSync(join(dir, 'sprint-reviews'));
+  writeFileSync(join(dir, 'sprint-reviews', 'costs.csv'), ['date,from,until,provider,models,input_tokens,output_tokens,usd', ...[0.1, 0.2, 0.3, 0.4, 0.5, 0.6].map((usd, i) => `2026-11-0${i + 1},a,b,anthropic,m,1,1,${usd}`), '2026-11-08,a,b,ollama,m,1,1,'].join('\n') + '\n');
+  assert.deepEqual(pastCosts(config), [0.2, 0.3, 0.4, 0.5, 0.6]);
 });

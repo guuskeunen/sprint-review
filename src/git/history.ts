@@ -8,7 +8,8 @@ export class GitError extends Error {}
  * such as tags, where the review covers what `to` has and `from` does not.
  */
 export type Range =
-  | { kind: 'dates'; from: string; until: string }
+  /** The days from and until, counted on a branch or commit (at), HEAD when it is not set. */
+  | { kind: 'dates'; from: string; until: string; at?: string }
   | { kind: 'refs'; from: string; to: string };
 
 const MAX_BODY = 600;
@@ -67,7 +68,7 @@ export class History {
 
   /** The commits of the range, newest first, without merges. */
   commits(range: Range, productPaths: string[], ignore: string[], max: number, nonProductTypes: string[] = NON_PRODUCT_TYPES): Commit[] {
-    if (range.kind === 'refs') for (const ref of [range.from, range.to]) if (!this.resolve(ref)) throw new GitError(`No tag, branch or commit called "${ref}" in ${this.repo}.`);
+    for (const ref of range.kind === 'refs' ? [range.from, range.to] : range.at ? [range.at] : []) if (!this.resolve(ref)) throw new GitError(`No tag, branch or commit called "${ref}" in ${this.repo}.`);
     const args = ['log', '--no-merges', '--date=short', `--max-count=${max}`, '--name-only', '--format=%x1d%h%x1f%ad%x1f%s%x1f%b%x1e'];
     args.push(...rangeArgs(range));
     const patterns = ignore.map((p) => new RegExp(p, 'i'));
@@ -94,7 +95,7 @@ export class History {
   /** The commit at the start and at the end of the range: the before and after of the screenshots. */
   ends(range: Range): { start: string | null; end: string | null } {
     if (range.kind === 'refs') return { start: this.resolve(range.from), end: this.resolve(range.to) };
-    return { start: this.revisionAt(`${range.from} 00:00:00`), end: this.revisionAt(`${range.until} 23:59:59`) };
+    return { start: this.revisionAt(`${range.from} 00:00:00`, range.at), end: this.revisionAt(`${range.until} 23:59:59`, range.at) };
   }
 
   /** The files that changed in the range under a folder. */
@@ -112,6 +113,30 @@ export class History {
     args.push('--', `:(top)${path}`);
     const first = this.git(args, true).split('\n')[0]?.trim();
     return first ? this.show(first, path) : null;
+  }
+
+  /** How many commits of a date range `ref` holds that the range's own branch lacks; null when `ref` doesn't exist. */
+  missingFrom(range: Range, ref: string): number | null {
+    if (range.kind !== 'dates' || !this.resolve(ref)) return null;
+    const args = ['rev-list', '--count', '--no-merges', `--since=${range.from} 00:00:00`, `--until=${range.until} 23:59:59`, '--end-of-options', safeRef(ref), `^${safeRef(range.at ?? 'HEAD')}`];
+    return Number(this.git(args, true).trim()) || 0;
+  }
+
+  /** How many commits of a date range a ref holds. */
+  countIn(range: Range, ref: string): number {
+    if (range.kind !== 'dates' || !this.resolve(ref)) return 0;
+    return Number(this.git(['rev-list', '--count', '--no-merges', `--since=${range.from} 00:00:00`, `--until=${range.until} 23:59:59`, '--end-of-options', safeRef(ref)], true).trim()) || 0;
+  }
+
+  /** The branch a remote's HEAD points at (origin/main), null when there is no remote. */
+  remoteDefault(remote = 'origin'): string | null {
+    const ref = this.git(['symbolic-ref', '--quiet', '--short', `refs/remotes/${remote}/HEAD`], true).trim();
+    return ref || null;
+  }
+
+  /** A ref when it exists, else null. */
+  exists(ref: string): boolean {
+    return this.resolve(ref) !== null;
   }
 
   listFiles(revision: string, dir: string): string[] {
@@ -143,8 +168,8 @@ export class History {
       .map((x) => x.slice(0, 200));
   }
 
-  private revisionAt(moment: string): string | null {
-    const hash = this.git(['rev-list', '-1', `--before=${moment}`, 'HEAD'], true).trim();
+  private revisionAt(moment: string, at = 'HEAD'): string | null {
+    const hash = this.git(['rev-list', '-1', `--before=${moment}`, '--end-of-options', safeRef(at)], true).trim();
     return hash === '' ? null : hash;
   }
 
@@ -160,7 +185,7 @@ export class History {
  * option (--output=<file> writes anywhere). --end-of-options guards the rest.
  */
 function rangeArgs(range: Range): string[] {
-  if (range.kind === 'dates') return [`--since=${range.from} 00:00:00`, `--until=${range.until} 23:59:59`];
+  if (range.kind === 'dates') return [`--since=${range.from} 00:00:00`, `--until=${range.until} 23:59:59`, ...(range.at ? ['--end-of-options', safeRef(range.at)] : [])];
   return ['--end-of-options', `${safeRef(range.from)}..${safeRef(range.to)}`];
 }
 

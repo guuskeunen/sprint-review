@@ -87,8 +87,8 @@ export function readMessage(body: string): AnthropicMessage {
   return message;
 }
 
-/** Reads a response body, calling `alive` on every chunk, so an idle timer can be reset. */
-export async function readBody(res: Response, alive: () => void): Promise<string> {
+/** Reads a response body, calling `alive` with the size of every chunk, so an idle timer can be reset. */
+export async function readBody(res: Response, alive: (bytes: number) => void): Promise<string> {
   if (!res.body) return res.text();
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
@@ -96,7 +96,7 @@ export async function readBody(res: Response, alive: () => void): Promise<string
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
-    alive();
+    alive(value.byteLength);
     text += decoder.decode(value, { stream: true });
   }
   return text + decoder.decode();
