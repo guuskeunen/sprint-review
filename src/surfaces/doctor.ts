@@ -53,6 +53,8 @@ export async function doctorChecks(config: Config, cwd = process.cwd(), env = pr
     } catch {}
     add(found !== null && found !== 'nothing', `Brand website read${found ? `: ${found}` : ''}`, `Check brand.from: ${config.brand.from}, or set brand.color and brand.logo yourself`);
   } else if (config.brand.from) add(existsSync(resolve(config.root, config.brand.from)), 'Brand presentation exists', `Check brand.from: ${config.brand.from}`);
+  // Not an error, but an unbranded deck is easy to miss until it's on the screen.
+  if (!config.brand.from && !config.brand.color && !config.brand.logo) add(true, 'No brand set: the deck has the default look. Set brand.from to your website for your logo, color and fonts.');
   const provider = config.model.provider;
   if (isLocal(provider)) {
     const base = config.model.baseUrl ?? PRESETS[provider as 'ollama' | 'lmstudio'].baseUrl!;

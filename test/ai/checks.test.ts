@@ -167,6 +167,16 @@ test('the writer is told which pictures are close-ups, and that no picture beats
   const { normalize } = await import('../../src/config.ts');
   const c = normalize({ screenshots: { source: 'capture', pages: { companies: '/companies', contacts: { url: '/c/1', selector: 'section' } }, names: { contacts: 'Company contacts' } } }, '/tmp');
   const text = JSON.stringify(writerTool(c, [], ['Companies (desktop)', 'Company contacts (desktop)']));
-  assert.match(text, /prefer them when they fit: Company contacts \(desktop\)\./);
+  assert.match(text, /prefer them when one shows the change itself: Company contacts \(desktop\)\./);
   assert.match(text, /worse than none/);
+});
+
+test('the writer reads what each picture shows, since it never sees the pictures', async () => {
+  const { writerTool } = await import('../../src/ai/prompt.ts');
+  const { normalize } = await import('../../src/config.ts');
+  const c = normalize({ screenshots: { source: 'capture', pages: { 'three-ws': { url: '/c/1', selector: 'section' }, gone: '/gone' }, names: { 'three-ws': 'The 3 Ws' }, descriptions: { 'three-ws': 'Why to contact a company now', gone: 'Not taken today' } } }, '/tmp');
+  const text = JSON.stringify(writerTool(c, [], ['The 3 Ws (desktop)']));
+  assert.match(text, /What each picture shows: The 3 Ws \(desktop\): Why to contact a company now\./);
+  assert.doesNotMatch(text, /Not taken today/, 'only pictures there are');
+  assert.throws(() => normalize({ screenshots: { source: 'capture', pages: { a: '/a' }, descriptions: { a: 3 } } }, '/tmp'), /screenshots.descriptions/);
 });

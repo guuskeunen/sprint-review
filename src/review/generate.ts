@@ -136,6 +136,7 @@ export async function generate(config: Config, options: GenerateOptions): Promis
   const changed = await shots.changed();
   const available = shots.available();
   if (config.screenshots.source !== 'none') step(`${changed.length} screen${changed.length === 1 ? '' : 's'} changed, ${available.size} picture${available.size === 1 ? '' : 's'} available`);
+  if (shots.note) step(shots.note);
 
   step(`Writing the slides with ${config.model.name}${config.model.provider === 'anthropic' ? '' : ` via ${config.model.provider}`}`);
   const meter = metered(options.model, step);
@@ -191,7 +192,7 @@ export function render(review: Review, config: Config): { html: string; markdown
   review = validReview(review);
   const brand = resolvedBrand(config);
   return {
-    html: renderDeck(review, { color: brand.color, logo: brand.logo, labels: config.labels, goal: config.goal, theme: config.brand.theme, fonts: brand.fonts, deck: config.deck, fontFaces: fontFaces(config.brand.fontFiles, config.root, (m) => console.error(m)) }),
+    html: renderDeck(review, { color: brand.color, logo: brand.logo, labels: config.labels, goal: config.goal, theme: config.brand.theme, fonts: brand.fonts, deck: config.deck, fontFaces: [...fontFaces(config.brand.fontFiles, config.root, (m) => console.error(m)), ...(config.brand.fontFaces ?? [])] }),
     markdown: renderMarkdown(review, config.labels),
   };
 }

@@ -294,7 +294,9 @@ The deck gets much better once the AI knows what the product is and who's watchi
 npx @guuskeunen/sprint-review init
 ```
 
-Then fill in the top of `sprint-review.config.yml`:
+It asks for the product's name, what it is, your website and who watches. It reads the website right away and shows what the deck takes from it: the logo, brand color and fonts. Without a terminal (in CI, or from a script), it takes `--website`, `--description` and `--preset` instead, and guesses the website from `homepage` in `package.json`.
+
+The answers go into `sprint-review.config.yml`, which looks like this:
 
 ```yaml
 product:
@@ -306,8 +308,7 @@ language: English
 sprint:
   days: 14
 brand:
-  color: "#ea580c"
-  logo: ./docs/logo.png
+  from: https://www.northsidecycles.example   # logo, color and fonts from the website
 productPaths:
   - src/
 ```
@@ -320,6 +321,7 @@ The fields that matter most:
 | `audience` | `business` (default), `executives`, `customers` or `team`, or describe your audience in a sentence. |
 | `productPaths` | Folders with product code. Commits that only touch other files (tests, CI, docs) can never become a theme. |
 | `sprint.days` | How far back a review looks. Default 14. |
+| `brand.from` | Your website: the deck gets its logo, color and fonts. Without a brand the deck has the default look, and the run and `doctor` say so. |
 
 `init --preset executives` (or `customers`, `team`) starts from another audience.
 
@@ -520,7 +522,7 @@ The branch the sprint is read from, whatever is checked out: `origin/develop` wh
 |---|---|
 | `color` | Accent color as `#rrggbb`. Lighter and darker shades are mixed from it. Default indigo `#4f46e5`. A color too light for a light deck or too dark for a dark one is darkened or lightened just enough to read (WCAG 3:1, as for large text and icons); a color that reads keeps its exact value. |
 | `logo` | Path to a PNG, JPG, SVG, WebP or GIF, or a `data:image/...` URI. Shown on the cover, on a white plate. |
-| `from` | A website (`https://...`) or the path to a `.pptx` or `.potx`. From a website: its brand color (a `--brand` or `--primary` color in its stylesheet, or its `theme-color`; grays are skipped), its heading and body fonts (`--font-heading`/`--font-display`, `--font-sans`/`--font-body`) and its logo (a logo image or SVG in the header first, then elsewhere on the page, passing over walls of client or partner logos; else its largest icon). From a presentation: its theme's first accent color, fonts and the logo on its slide master. Either way it fills in only what you didn't set here, and only the look is taken, not the layout. `sprint-review doctor` shows what it found. |
+| `from` | A website (`https://...`) or the path to a `.pptx` or `.potx`. From a website: its brand color (a `--brand` or `--primary` color in its stylesheet, or its `theme-color`; grays are skipped), its heading and body fonts (`--font-heading`/`--font-display`, `--font-sans`/`--font-body`/`--ui-font`, also named the other way round or with a prefix, such as `--heading-font` or `--bs-body-font-family`) with their files, so the deck looks the same on a laptop without them (upright Latin files from the site's own `@font-face` rules or its Google Fonts stylesheets, 2 MB in all; `fontFiles` you set win for that family) and its logo (a logo image or SVG in the header first, then elsewhere on the page, passing over walls of client or partner logos; else its largest icon). From a presentation: its theme's first accent color, fonts and the logo on its slide master. Either way it fills in only what you didn't set here, and only the look is taken, not the layout. `sprint-review doctor` shows what it found. |
 | `theme` | `light` (default) or `dark`: near-black with warm ivory text and a champagne accent. |
 | `fonts.heading`, `fonts.body` | Font families for headings and text. The theme's own fonts are the fallback. |
 | `fontFiles` | Font files to put inside the deck, by family, so it looks the same on any laptop: `{ Inter: [fonts/inter-400.woff2, fonts/inter-700.woff2] }`. The weight comes from the file name (400, 700). Open fonts are on npm as `@fontsource/<name>`. Keep to a few weights: 2 MB at most. Without them, the fonts must be installed where the deck is shown. |
@@ -577,6 +579,7 @@ Before and after slides, and pictures on theme slides. See the [screenshots guid
 | `before`, `after` | `folder`: two folders with the pictures at the start and end of the sprint. |
 | `pages`, `baseUrl`, `devices`, `mask`, `storageState`, `login`, `wait`, `storage`, `onReview` | `capture`: the tool takes the pictures itself. See [taking screenshots](screenshots.md#option-3-the-tool-takes-them-capture). |
 | `names` | Readable names per screen key. Also sets the order. |
+| `descriptions` | What each picture shows, in a line per screen key: `three-ws: Why to contact this company now`. The model never sees the pictures and chooses one by its name, so a name like "The 3 Ws" can land on the wrong theme; a description lets it choose by content, and leave a slide without a picture when none fits. |
 | `ignore.left` | Pixels on the left to skip when comparing desktop pictures (a side menu). |
 | `ignore.top` | Pixels at the top to skip (a top bar). |
 
@@ -802,7 +805,7 @@ Take today's pictures:
 npx @guuskeunen/sprint-review capture
 ```
 
-You rarely need to: making a review takes today's pictures first when its sprint ends today and there are none yet (`onReview: false` turns that off). Those are this review's *after* and the next review's *before*. If they can't be taken (logged out, the app is down), the review says so and goes on with the pictures there are. Keep the storage folder between runs: commit it, or cache it in CI. The first run has nothing to compare with, so its pictures only show on theme slides.
+You rarely need to: making a review takes today's pictures first when its sprint ends today and there are none yet (`onReview: false` turns that off). Those are this review's *after* and the next review's *before*. If they can't be taken (logged out, the app is down), the review says so and goes on with the pictures there are. Keep the storage folder between runs: commit it, or cache it in CI. The first run has nothing to compare with, so its pictures only show on theme slides. A review only uses pictures taken by the sprint's last day, since later ones can show work from after it. When all of them are later, it says so.
 
 ### Logging in
 
@@ -836,7 +839,7 @@ When a page sends capture to a login page (`/login`, `/signin`, `/auth`), it sto
 | `customer-page.png` | `customer-page` | desktop |
 | `dashboard-mobile-chromium-linux.png` | `dashboard` | phone (Playwright's browser and platform suffix is dropped) |
 
-The screen key turns into a readable name ("customer-page" → "Customer page") unless you set one in `names`. The order of `names` is also the order of the slides.
+The screen key turns into a readable name ("customer-page" → "Customer page") unless you set one in `names`. The writer chooses a theme's picture by that name alone, without seeing the picture, so name a screen after what it shows: "Editor with the minimap open" gets put on the minimap slide, while "Editor" may get left off as too general. The order of `names` is also the order of the slides.
 
 Phone pictures are shown upright, in a phone frame: one phone screen around the change, with the change framed, and → zooms in on where it starts. A phone picture gets a before and after slide only when the desktop picture of the same screen did not change too; otherwise the desktop slide shows the change, larger.
 

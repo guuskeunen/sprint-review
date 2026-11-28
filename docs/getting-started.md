@@ -55,7 +55,9 @@ The deck gets much better once the AI knows what the product is and who's watchi
 npx @guuskeunen/sprint-review init
 ```
 
-Then fill in the top of `sprint-review.config.yml`:
+It asks for the product's name, what it is, your website and who watches. It reads the website right away and shows what the deck takes from it: the logo, brand color and fonts. Without a terminal (in CI, or from a script), it takes `--website`, `--description` and `--preset` instead, and guesses the website from `homepage` in `package.json`.
+
+The answers go into `sprint-review.config.yml`, which looks like this:
 
 ```yaml
 product:
@@ -67,8 +69,7 @@ language: English
 sprint:
   days: 14
 brand:
-  color: "#ea580c"
-  logo: ./docs/logo.png
+  from: https://www.northsidecycles.example   # logo, color and fonts from the website
 productPaths:
   - src/
 ```
@@ -81,6 +82,7 @@ The fields that matter most:
 | `audience` | `business` (default), `executives`, `customers` or `team`, or describe your audience in a sentence. |
 | `productPaths` | Folders with product code. Commits that only touch other files (tests, CI, docs) can never become a theme. |
 | `sprint.days` | How far back a review looks. Default 14. |
+| `brand.from` | Your website: the deck gets its logo, color and fonts. Without a brand the deck has the default look, and the run and `doctor` say so. |
 
 `init --preset executives` (or `customers`, `team`) starts from another audience.
 

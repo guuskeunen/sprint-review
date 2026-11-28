@@ -2,7 +2,8 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { configTemplate, configText, findConfigFile, loadConfig, normalize, type Config } from '../config.ts';
+import { configTemplate, findConfigFile, loadConfig, normalize, type Config } from '../config.ts';
+import { configText } from './setup.ts';
 import { withWebsiteBrand } from '../brand/website.ts';
 import { costLine, recordRun } from '../ai/costs.ts';
 import { generate, missedWork, onBranch, rangeFor } from '../review/generate.ts';
@@ -141,7 +142,7 @@ export async function callTool(name: string, a: Args, cwd = process.cwd()): Prom
     const website = s('website');
     if (website && !/^https?:\/\//.test(website)) throw new Error('website must start with https://.');
     const file = join(dir, 'sprint-review.config.yml');
-    writeFileSync(file, configText({ name: s('name')!, description: s('description'), organization: s('organization'), audience: s('audience'), language: s('language'), website, branch: s('branch') }, configTemplate()));
+    writeFileSync(file, configText(configTemplate(), { name: s('name')!, description: s('description') ?? '', organization: s('organization'), audience: s('audience') ?? 'business', language: s('language'), website: website ?? null, branch: s('branch') }));
     return `Created ${file}. Run check_sprint_review_setup next; the file has comments for everything else (screenshots, limits, labels).`;
   }
   if (name === 'check_sprint_review_setup') {

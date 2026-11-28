@@ -2,6 +2,7 @@ import { isLocal, PROVIDERS, type ProviderName } from './ai/providers.ts';
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, resolve, extname, join } from 'node:path';
 import YAML from 'yaml';
+import type { FontFace } from './brand/fonts.ts';
 
 /** Who the deck is for. A preset, or your own description. */
 export const AUDIENCES = {
@@ -76,6 +77,8 @@ export interface Config {
     fonts: { heading: string | null; body: string | null };
     /** Font files to put inside the deck, by family: { Inter: [path/to/inter-400.woff2] }. */
     fontFiles: Record<string, string[]>;
+    /** Font files read from the website in brand.from, for families fontFiles leaves out. Never set in the config file. */
+    fontFaces?: FontFace[];
   };
   /** branch: the branch the sprint is read from (its origin/ copy when there is one); null reads what is checked out. */
   sprint: { days: number; branch: string | null };
@@ -136,6 +139,8 @@ export type ScreenshotConfig =
 
 interface ScreenCommon {
   names: Record<string, string>;
+  /** What each picture shows, by screen key: the writer reads this to choose a picture, since it never sees one. */
+  descriptions: Record<string, string>;
   ignore: { left: number; top: number };
   /** A short clip per screen key (an .mp4 or .webm of a few seconds), shown looping instead of its picture. */
   videos: Record<string, string>;
@@ -311,6 +316,7 @@ function screenshots(value: unknown): ScreenshotConfig {
   const s = obj(value, 'screenshots');
   const source = str(s.source, 'screenshots.source') ?? (s.dir ? 'git' : s.before ? 'folder' : 'none');
   const names = strMap(s.names, 'screenshots.names');
+  const descriptions = strMap(s.descriptions, 'screenshots.descriptions');
   const ig = obj(s.ignore ?? {}, 'screenshots.ignore');
   const ignore = { left: int(ig.left, 'screenshots.ignore.left', 0, 0, 4000), top: int(ig.top, 'screenshots.ignore.top', 0, 0, 4000) };
   const videos = strMap(s.videos, 'screenshots.videos');
@@ -319,13 +325,13 @@ function screenshots(value: unknown): ScreenshotConfig {
   if (source === 'git') {
     const dir = str(s.dir, 'screenshots.dir');
     if (!dir) throw new ConfigError('screenshots.dir is required when screenshots.source is git.');
-    return { source: 'git', dir: dir.replace(/\/+$/, ''), names, ignore, videos };
+    return { source: 'git', dir: dir.replace(/\/+$/, ''), names, descriptions, ignore, videos };
   }
   if (source === 'folder') {
     const before = str(s.before, 'screenshots.before');
     const after = str(s.after, 'screenshots.after');
     if (!before || !after) throw new ConfigError('screenshots.before and screenshots.after are required when screenshots.source is folder.');
-    return { source: 'folder', before, after, names, ignore, videos };
+    return { source: 'folder', before, after, names, descriptions, ignore, videos };
   }
   if (source === 'capture') {
     const pages: CaptureConfig['pages'] = {};
@@ -344,6 +350,7 @@ function screenshots(value: unknown): ScreenshotConfig {
     return {
       source: 'capture',
       names,
+      descriptions,
       ignore,
       videos,
       capture: {
@@ -473,33 +480,4 @@ export function isLoopback(url: string): boolean {
 /** The commented template a new config starts from. */
 export function configTemplate(): string {
   return readFileSync(new URL('../assets/config.template.yml', import.meta.url), 'utf8');
-}
-
-/** What a new config is filled with; every field but the name is optional. */
-export interface NewConfig {
-  name: string;
-  description?: string;
-  organization?: string;
-  audience?: string;
-  language?: string;
-  /** The brand's website: color, logo and fonts are read from it. */
-  website?: string;
-  branch?: string;
-}
-
-/**
- * A new sprint-review.config.yml: the commented template with these values in it. Values go in
- * as YAML, so a name with a colon or a quote can't break the file. Shared by init and the MCP server.
- */
-export function configText(values: NewConfig, template: string): string {
-  const v = (x: string) => YAML.stringify(x).trim();
-  let text = template
-    .replace('name: {{name}}', `name: ${v(values.name)}`)
-    .replace('audience: {{audience}}', `audience: ${v(values.audience || 'business')}`);
-  if (values.description) text = text.replace('  description: ""', `  description: ${v(values.description)}`);
-  if (values.organization) text = text.replace('organization: ""', `organization: ${v(values.organization)}`);
-  if (values.language) text = text.replace('language: English', `language: ${v(values.language)}`);
-  if (values.branch) text = text.replace(/ {2}# branch: develop .*/, `  branch: ${v(values.branch)}`);
-  if (values.website) text = text.replace('  color: "#4f46e5"', `  from: ${v(values.website)}            # color, logo and fonts from the website\n  # color: "#4f46e5"`);
-  return text;
 }

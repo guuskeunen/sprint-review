@@ -5,7 +5,7 @@ product:
   name: {{name}}
   # One or two sentences on what the product is and who uses it. The AI uses this to explain
   # changes in terms your audience knows.
-  description: ""
+  description: {{description}}
 
 # Shown on the cover and the "What we gain" slide.
 organization: ""
@@ -21,11 +21,12 @@ sprint:
   days: 14
   # branch: develop      # read the sprint from this branch (origin/develop when fetched), whatever is checked out
 
-# Your brand. The logo can be PNG, JPG, SVG or WebP.
+# Your brand: the logo, color and fonts come from your website. What you set below wins over it.
 brand:
-  color: "#4f46e5"
-  # logo: ./logo.png
-  # from: ./our-template.pptx           # take color, fonts and logo from your own PowerPoint
+  {{website}}
+  # color: "#4f46e5"
+  # logo: ./logo.png                    # PNG, JPG, SVG or WebP
+  # from: ./our-template.pptx           # or take them from your own PowerPoint
   # theme: light                        # light or dark
   # fonts: { heading: "Playfair Display", body: Inter }
 
