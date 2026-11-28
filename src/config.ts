@@ -2,6 +2,7 @@ import { isLocal, PROVIDERS, type ProviderName } from './ai/providers.ts';
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, resolve, extname } from 'node:path';
 import YAML from 'yaml';
+import type { FontFace } from './brand/fonts.ts';
 
 /** Who the deck is for. A preset, or your own description. */
 export const AUDIENCES = {
@@ -76,6 +77,8 @@ export interface Config {
     fonts: { heading: string | null; body: string | null };
     /** Font files to put inside the deck, by family: { Inter: [path/to/inter-400.woff2] }. */
     fontFiles: Record<string, string[]>;
+    /** Font files read from the website in brand.from, for families fontFiles leaves out. Never set in the config file. */
+    fontFaces?: FontFace[];
   };
   sprint: { days: number };
   /** Folders that hold product code. A commit outside them can only go under the hood. Empty: every commit counts. */

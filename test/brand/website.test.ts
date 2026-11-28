@@ -38,7 +38,7 @@ test('a website gives its brand color, fonts and favicon as the logo', async () 
   assert.equal(brand.color, '#0e2459', 'white theme-color and gray primary are passed over');
   assert.deepEqual(brand.fonts, { heading: 'Space Grotesk', body: 'Inter' });
   assert.equal(brand.logo, `data:image/png;base64,${png.toString('base64')}`);
-  assert.ok(!s.asked.some((u) => u.includes('fonts.googleapis.com')), 'font stylesheets are not fetched');
+  assert.deepEqual(brand.fontFaces, [], 'a font stylesheet that lists no files gives no files');
 });
 
 test('a logo image on the page wins over icons, and shadcn colors are read', async () => {
@@ -127,4 +127,48 @@ test('among logo images, the one with the site\'s own name wins', async () => {
   await brandFromWebsite('https://www.acme.com', s.impl);
   assert.ok(s.asked.some((u) => u.endsWith('/img/acme-logo.png')));
   assert.ok(!s.asked.some((u) => u.endsWith('/img/partner-logo.png')));
+});
+
+const woff2 = Buffer.concat([Buffer.from('wOF2'), Buffer.alloc(12)]);
+const googleCss = (family: string, file: string) => [300, 400, 700].map((w) => `/* cyrillic */
+@font-face { font-family: '${family}'; font-style: normal; font-weight: ${w}; src: url(https://fonts.gstatic.com/s/${file}-cyr.woff2) format('woff2'); unicode-range: U+0301, U+0400-045F; }
+/* latin */
+@font-face { font-family: '${family}'; font-style: normal; font-weight: ${w}; src: url(https://fonts.gstatic.com/s/${file}.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131; }`).join('\n');
+
+test('a website gives the files of its heading and body fonts, so the deck carries them', async () => {
+  const s = site({
+    '/': '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;700&amp;display=swap"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=MuseoModerno"><link rel="stylesheet" href="/app.css">',
+    '/app.css': ':root{--font-display:"Space Grotesk",sans-serif;--font-sans:"Acme Sans",sans-serif}@font-face{font-family:"Acme Sans";font-weight:400;src:url(/fonts/acme.woff2) format("woff2")}@font-face{font-family:"Acme Sans";font-style:italic;src:url(/fonts/acme-italic.woff2)}',
+    '/css2': googleCss('Space Grotesk', 'spacegrotesk'),
+    '/s/spacegrotesk.woff2': woff2,
+    '/fonts/acme.woff2': woff2,
+  });
+  const brand = await brandFromWebsite('https://acme.test/', s.impl);
+  assert.deepEqual(brand.fonts, { heading: 'Space Grotesk', body: 'Acme Sans' });
+  assert.deepEqual(brand.fontFaces?.map((f) => [f.family, f.weight, f.maxWeight ?? null, f.style]), [['Acme Sans', 400, null, 'normal'], ['Space Grotesk', 300, 700, 'normal']], 'one face per file, latin only, no italics');
+  assert.ok(brand.fontFaces?.every((f) => f.data.startsWith('data:font/woff2;base64,')));
+  assert.equal(s.asked.filter((u) => u.includes('fonts.googleapis.com')).length, 1, 'only the stylesheets of fonts the deck uses');
+  assert.ok(!s.asked.some((u) => u.includes('-cyr')), 'other scripts are not downloaded');
+});
+
+test('font files the config sets itself win over the website for that family', async () => {
+  const s = site({
+    '/': '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter"><style>:root{--font-sans:Inter;--font-heading:Inter}</style>',
+    '/css2': googleCss('Inter', 'inter'),
+    '/s/inter.woff2': woff2,
+  });
+  const site_ = await withWebsiteBrand(normalize({ brand: { from: 'https://acme.test' } }, '/tmp'), s.impl);
+  assert.equal(site_.brand.fontFaces?.length, 1);
+  const own = await withWebsiteBrand(normalize({ brand: { from: 'https://acme.test', fontFiles: { Inter: ['inter.woff2'] } } }, '/tmp'), s.impl);
+  assert.deepEqual(own.brand.fontFaces, []);
+});
+
+test('font variables named the other way round count too: --ui-font, --body-font, --bs-body-font-family', async () => {
+  const fontsOf = async (css: string) => (await brandFromWebsite('https://acme.test/', site({ '/': `<style>${css}</style>` }).impl)).fonts;
+  // excalidraw.com: its interface font is in --ui-font, used as font-family: var(--ui-font).
+  assert.deepEqual(await fontsOf(':root{--ui-font: Assistant, system-ui, sans-serif}body{font-family:var(--ui-font)}'), { heading: null, body: 'Assistant' });
+  assert.deepEqual(await fontsOf(':root{--heading-font:"Playfair Display", serif;--body-font:Lato, sans-serif}'), { heading: 'Playfair Display', body: 'Lato' });
+  assert.deepEqual(await fontsOf(':root{--bs-body-font-family:"Nunito Sans", system-ui}'), { heading: null, body: 'Nunito Sans' });
+  assert.deepEqual(await fontsOf(':root{--font-sans:var(--font-inter), Inter, sans-serif}'), { heading: null, body: 'Inter' }, 'a var() in the list is passed over');
+  assert.deepEqual(await fontsOf(':root{--heading-font-weight:700;--icon-font:"Material Icons"}'), { heading: null, body: null }, 'not a weight, not an icon font');
 });
