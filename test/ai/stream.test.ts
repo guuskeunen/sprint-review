@@ -75,3 +75,19 @@ test('a streamed answer cut off at maxTokens is an error', async () => {
   const impl = (async () => eventStream(streamed('m1', 'max_tokens'))) as unknown as typeof fetch;
   await assert.rejects(new AnthropicClient('key', 'm1', null, impl).ask(request), /cut off/);
 });
+
+test('a retry and the fallback are said out loud, with the reason, never in silence', async () => {
+  const told: string[] = [];
+  const impl = (async (_url: string, init: { body: string }) => {
+    const model = (JSON.parse(init.body) as { model: string }).model;
+    if (model === 'm2') return eventStream(streamed('m2'));
+    throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNRESET' } });
+  }) as unknown as typeof fetch;
+  const answer = await new AnthropicClient('key', 'm1', 'm2', impl).ask({ ...request, progress: (m) => told.push(m) });
+  assert.equal(answer.model, 'm2');
+  assert.deepEqual(told, [
+    'm1: try 1 of 3 failed (fetch failed: ECONNRESET); trying again',
+    'm1: try 2 of 3 failed (fetch failed: ECONNRESET); trying again',
+    'm1 failed (fetch failed: ECONNRESET); asking m2',
+  ]);
+});

@@ -134,6 +134,7 @@ sprint-review --since 2026-11-03 --until 2026-11-16   # two dates, both included
 sprint-review --until 2026-11-16                      # the sprint (sprint.days) ending that day
 sprint-review --from v1.4.0                           # since a tag, up to HEAD
 sprint-review --from v1.4.0 --to v1.5.0               # between two tags or commits
+sprint-review --since 2026-11-18 --to origin/develop   # the days, read on another branch
 ```
 
 ## Installing it for good

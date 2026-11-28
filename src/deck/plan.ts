@@ -1,4 +1,4 @@
-import { DENSITY, defaultDeck, type DeckConfig } from '../config.ts';
+import { DENSITY, defaultDeck, UNNAMED_PRODUCT, type DeckConfig } from '../config.ts';
 import type { Milestone, Review, ReviewTheme } from '../types.ts';
 import { imageSize } from './images.ts';
 
@@ -95,6 +95,11 @@ export function isWide(image: string): boolean {
 }
 
 /** The picture on the cover: the first desktop screenshot shaped like a screen, so a strip never floats there. */
+/** Who or what the deck is about, on the cover and in titles: the organization, else the product (never the placeholder for none). */
+export function coverName(review: Review): string {
+  return review.organization || (review.product && review.product !== UNNAMED_PRODUCT ? review.product : '');
+}
+
 export function coverPicture(review: Review): string | null {
   const shots = [...review.themes.flatMap((th) => (th.screen?.device === 'desktop' ? [th.screen.image] : [])), ...review.screens.filter((x) => x.device === 'desktop').map((x) => x.after)];
   return shots.find((image) => !isWide(image)) ?? null;

@@ -1,6 +1,6 @@
 import type { Review } from '../types.ts';
 import { fill, labelsFor } from './i18n.ts';
-import { roadmapMoves } from './plan.ts';
+import { coverName, roadmapMoves } from './plan.ts';
 
 /**
  * Text from the model or from commits, safe in Markdown: brackets and angle brackets are escaped,
@@ -13,7 +13,7 @@ function md(text: string | null | undefined): string {
 /** A short Markdown version of the review: for a pull request, Slack, an email or a changelog. */
 export function renderMarkdown(review: Review, labels: Record<string, string> = {}): string {
   const t = labelsFor(review.language, labels);
-  const out: string[] = [`# ${md(review.title)}`, '', `_${md(review.period)}${review.organization ? ` · ${md(review.organization)}` : ''}_`, ''];
+  const out: string[] = [`# ${md(review.title)}`, '', `_${md(review.period)}${coverName(review) ? ` · ${md(coverName(review))}` : ''}_`, ''];
   if (review.headline) out.push(`**${md(review.headline)}**`, '');
   if (review.answered?.length) out.push(`## ${t.answeredLabel}`, '', ...review.answered.map((a) => `- "${md(a.ask)}": ${md(a.did)}`), '');
   if (review.lastTime?.items.length) out.push(`## ${t.lastTimeLabel}`, '', ...review.lastTime.items.map((m) => `- [${m.done ? 'x' : ' '}] ${md(m.text)}`), '');

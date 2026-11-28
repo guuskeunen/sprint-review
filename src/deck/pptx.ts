@@ -4,7 +4,7 @@ import sharp from 'sharp';
 // Types only: erased from the build, so pptxgenjs stays an optional peer.
 type PptxClass = (typeof import('pptxgenjs'))['default'];
 type Slide = ReturnType<InstanceType<PptxClass>['addSlide']>;
-import { coverPicture, numbers, planDeck, roadmapMoves } from './plan.ts';
+import { coverName, coverPicture, numbers, planDeck, roadmapMoves } from './plan.ts';
 import type { DeckConfig } from '../config.ts';
 import { readableOn } from './colors.ts';
 import { imageSize } from './images.ts';
@@ -63,7 +63,7 @@ export async function renderPptx(review: Review, options: PptxOptions = {}): Pro
   const pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_WIDE'; // 13.33 x 7.5 in
   pptx.title = review.title;
-  if (review.organization) pptx.company = review.organization;
+  if (coverName(review)) pptx.company = coverName(review);
   pptx.theme = { headFontFace: heading, bodyFontFace: body };
 
   // The deck's type scale in points (1 pt is 2 px at 1920 x 1080) and its margins.
@@ -103,7 +103,7 @@ export async function renderPptx(review: Review, options: PptxOptions = {}): Pro
         const hero = coverPicture(review);
         if (hero) s.addImage(place(hero, { x: 7.0, y: 1.2, w: 6.33, h: 5.0 }, 'cover'));
         await logoAt(s);
-        if (review.organization) eyebrow(s, review.organization, 2.2);
+        if (coverName(review)) eyebrow(s, coverName(review), 2.2);
         s.addText(review.title, { x: X, y: 2.6, w: hero ? 5.6 : CW, h: 2.6, fontFace: heading, fontSize: hero ? SIZE.title + 12 : SIZE.display, bold: true, color: pal.ink, valign: 'top', margin: 0 });
         s.addText(review.period, { x: X, y: 4.75, w: CW, h: 0.5, fontFace: body, fontSize: SIZE.body, color: pal.soft, margin: 0 });
         if (options.goal) s.addText(`${t.goalLabel.toUpperCase()}   ${options.goal}`, { x: X, y: 5.5, w: 8, h: 0.5, fontFace: body, fontSize: SIZE.small, color: pal.ink, fill: { color: pal.panel }, line: { color: pal.line } });

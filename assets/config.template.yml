@@ -19,6 +19,7 @@ language: English
 
 sprint:
   days: 14
+  # branch: develop      # read the sprint from this branch (origin/develop when fetched), whatever is checked out
 
 # Your brand: the logo, color and fonts come from your website. What you set below wins over it.
 brand:

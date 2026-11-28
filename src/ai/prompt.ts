@@ -156,7 +156,7 @@ Rules:
 - No marketing language and no intensifiers. No exclamation marks, no emoji, no em dashes.
 - The speaker notes are for the presenter, who knows the product: what to show and how to explain it in plain words, without repeating the slide. Don't invent screens or buttons. If a demo doesn't fit, say what to tell.
 - Order: what is best to show and changes most for a user comes first. Work on the presentation itself comes last.
-- The questions for the audience close the presentation. Each asks about one specific change, so the answer is more than "looks good": "Which repairs would you still type in by hand?", not "Any questions?".`,
+- The questions for the audience close the presentation. Each asks about one specific change, so the answer is more than "looks good", and is one this audience can answer from their own work: what they still do by hand, miss or would use. "Which repairs would you still type in by hand?", not "Any questions?" and not "Which fields should the sync add?".`,
     replace.length ? `- Use the team's words: ${replace.map(([a, b]) => `"${b}", not "${a}"`).join('; ')}.` : '',
     ...c.rules.map((r) => `- ${r}`),
     UNTRUSTED_RULE,
@@ -315,12 +315,12 @@ export function writerTool(c: Config, changedScreens: string[], availableScreens
         summary_notes: { type: 'string', description: 'Speaker note for the headline slide: two or three sentences to open with, sixty words at most.' },
         under_the_hood: {
           type: 'array',
-          description: 'Work without a visible effect, in plain words: five short points at most, and merge what belongs together. Empty when there is none.',
+          description: 'Work without a visible effect, in plain words: five short points at most, one change per point. Merge points about the same change, but never two changes in one point joined with a comma or "and": "The feedback button sends a screenshot", not "The feedback button sends a screenshot, the market page links to Notion". Work on the team\'s own tooling and process (releases, CI, dependency updates, how this review is made) gets one point at most, said as what it gives the audience ("New versions arrive every week, tested automatically"), never in the team\'s own terms. Empty when there is none.',
           items: { ...point, properties: { ...point.properties, kind: { type: 'string', enum: [...HOOD_KINDS], description: 'What kind of work it is.' } }, required: ['text', 'commits', 'kind'] },
         },
         questions: {
           type: 'array',
-          description: `Two or three open questions for the audience, each about one specific change in this sprint. At most ${HEADLINE_WORDS} words each.`,
+          description: `Two or three open questions for the audience, each about one specific change in this sprint, that they can answer from their own work, never about how it is built, synced or configured. At most ${HEADLINE_WORDS} words each.`,
           items: { type: 'string' },
         },
         ...screenChanges,
