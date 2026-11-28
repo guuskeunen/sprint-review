@@ -333,7 +333,6 @@ export function writerTool(c: Config, changedScreens: string[], availableScreens
   };
 }
 
-/** The captured pictures of one element (a card, a panel), by the name the writer picks them by. */
 /** What each available picture shows, from screenshots.descriptions: the writer chooses by name otherwise. */
 function pictureGuide(c: Config, availableScreens: string[]): string {
   const s = c.screenshots;
@@ -345,6 +344,7 @@ function pictureGuide(c: Config, availableScreens: string[]): string {
   return lines.length ? ` What each picture shows: ${lines.join(' ')}` : '';
 }
 
+/** The captured pictures of one element (a card, a panel), by the name the writer picks them by. */
 function closeUpScreens(c: Config): string[] {
   const s = c.screenshots;
   if (s.source !== 'capture') return [];

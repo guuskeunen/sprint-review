@@ -65,10 +65,13 @@ export function demoRepo(): string {
 /** A model that answers like a good writer, using the real hashes from the commit log it is sent. */
 export class FakeModel implements ModelClient {
   requests: ModelRequest[] = [];
-  private readonly options: { failReader?: boolean; revision?: string };
+  private readonly options: { failReader?: boolean; revision?: string; misfit?: string };
 
-  /** revision: what the writer answers when asked to rewrite a flagged line. Without it the rewrite call fails, as a model outage would. */
-  constructor(options: { failReader?: boolean; revision?: string } = {}) {
+  /**
+   * revision: what the writer answers when asked to rewrite a flagged line. Without it the rewrite call fails, as a model outage would.
+   * misfit: the theme whose picked picture the model, looking at it, says does not fit.
+   */
+  constructor(options: { failReader?: boolean; revision?: string; misfit?: string } = {}) {
     this.options = options;
   }
 
@@ -78,6 +81,14 @@ export class FakeModel implements ModelClient {
     if (request.tool.name === 'reading_report') {
       if (this.options.failReader) throw new Error('reader down');
       return { model: 'fake', usage, toolInput: { complaints: [{ text: 'Status counts load with less work', kind: 'unclear', why: 'What is a status count?' }] } };
+    }
+    if (request.tool.name === 'picture_description') {
+      const name = /"([^"]+)"/.exec(request.messages[0] ?? '')?.[1] ?? '?';
+      return { model: 'fake', usage, toolInput: { shows: `The ${name.toLowerCase()} as it looks now` } };
+    }
+    if (request.tool.name === 'picture_fit') {
+      const misfit = this.options.misfit !== undefined && (request.messages[0] ?? '').includes(`Theme: ${this.options.misfit}`);
+      return { model: 'fake', usage, toolInput: { fits: !misfit, why: misfit ? 'It shows a list of repairs, not the colors.' : '' } };
     }
     if (request.tool.name === 'revisions') {
       if (!this.options.revision) throw new Error('no revision');
