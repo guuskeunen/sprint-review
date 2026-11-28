@@ -797,7 +797,7 @@ Take today's pictures:
 npx @guuskeunen/sprint-review capture
 ```
 
-You rarely need to: making a review takes today's pictures first when its sprint ends today and there are none yet (`onReview: false` turns that off). Those are this review's *after* and the next review's *before*. If they can't be taken (logged out, the app is down), the review says so and goes on with the pictures there are. Keep the storage folder between runs: commit it, or cache it in CI. The first run has nothing to compare with, so its pictures only show on theme slides.
+You rarely need to: making a review takes today's pictures first when its sprint ends today and there are none yet (`onReview: false` turns that off). Those are this review's *after* and the next review's *before*. If they can't be taken (logged out, the app is down), the review says so and goes on with the pictures there are. Keep the storage folder between runs: commit it, or cache it in CI. The first run has nothing to compare with, so its pictures only show on theme slides. A review only uses pictures taken by the sprint's last day, since later ones can show work from after it. When all of them are later, it says so.
 
 ### Logging in
 
@@ -831,7 +831,7 @@ When a page sends capture to a login page (`/login`, `/signin`, `/auth`), it sto
 | `customer-page.png` | `customer-page` | desktop |
 | `dashboard-mobile-chromium-linux.png` | `dashboard` | phone (Playwright's browser and platform suffix is dropped) |
 
-The screen key turns into a readable name ("customer-page" → "Customer page") unless you set one in `names`. The order of `names` is also the order of the slides.
+The screen key turns into a readable name ("customer-page" → "Customer page") unless you set one in `names`. The writer chooses a theme's picture by that name alone, without seeing the picture, so name a screen after what it shows: "Editor with the minimap open" gets put on the minimap slide, while "Editor" may get left off as too general. The order of `names` is also the order of the slides.
 
 Phone pictures are shown upright, in a phone frame: one phone screen around the change, with the change framed, and → zooms in on where it starts. A phone picture gets a before and after slide only when the desktop picture of the same screen did not change too; otherwise the desktop slide shows the change, larger.
 
