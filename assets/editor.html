@@ -63,6 +63,11 @@
   .check { display: grid; grid-template-columns: auto 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--soft); }
   .check b { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); padding-top: 2px; }
   .check.warning b { color: var(--gold); }
+  .download { position: relative; }
+  .download-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; display: grid; min-width: 13rem; padding: 5px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--panel); box-shadow: 0 20px 50px -20px #000; }
+  .download-menu[hidden] { display: none; }
+  .download-menu button { text-align: left; border: 0; background: transparent; border-radius: 8px; padding: 8px 10px; }
+  .download-menu button:hover, .download-menu button:focus-visible { background: var(--gold-soft); color: var(--gold); }
   kbd { font: 11px var(--sans); padding: 1px 6px; border: 1px solid var(--line-2); border-radius: 5px; color: var(--soft); }
   /* Narrow windows: the preview stays in view above the form instead of disappearing. */
   @media (max-width: 1000px) { html, body { height: auto; } main { grid-template-columns: 1fr; } #preview { order: -1; position: sticky; top: 0; z-index: 5; } .stage { padding: 10px; } .nav { padding-bottom: 8px; } #form { overflow: visible; border-right: 0; } }
@@ -76,6 +81,7 @@
   <span class="spacer"></span>
   <span class="status" id="status">Saved</span>
   <button class="ghost" id="live" title="The deck in its own window, for a second screen: it shows every edit as you type">Open live view</button>
+  <div class="download"><button id="download" aria-haspopup="menu" aria-expanded="false" title="Saves your edits first">Download</button><div class="download-menu" id="download-menu" role="menu" hidden><button type="button" role="menuitem" data-get="pdf">PDF</button><button type="button" role="menuitem" data-get="pptx">PowerPoint</button><button type="button" role="menuitem" data-get="html">HTML (works offline)</button></div></div>
   <button class="primary" id="save" title="Ctrl/⌘ + S">Save and rebuild</button>
 </header>
 <main>
@@ -218,19 +224,52 @@
   }
   function save() {
     setStatus('Saving…');
-    api('PUT', '/api/review', review).then(function () { dirty = false; setStatus('Saved · deck rebuilt'); }).catch(function (e) { setStatus(e.message, 'error'); });
+    return api('PUT', '/api/review', review).then(function () { dirty = false; setStatus('Saved · deck rebuilt'); }).catch(function (e) { setStatus(e.message, 'error'); throw e; });
   }
+  // Download: what you see, so unsaved edits are saved first. PDF opens the deck in a tab with the print
+  // dialog; PowerPoint and HTML are fetched first, so a problem shows here and not as a downloaded error page.
+  var downloadButton = document.getElementById('download'), downloadMenu = document.getElementById('download-menu');
+  function setMenu(open) { downloadMenu.hidden = !open; downloadButton.setAttribute('aria-expanded', String(open)); }
+  downloadButton.onclick = function () { setMenu(downloadMenu.hidden); };
+  document.addEventListener('click', function (e) { if (!e.target.closest('.download')) setMenu(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setMenu(false); });
+  downloadMenu.addEventListener('click', function (e) {
+    var item = e.target.closest('[data-get]');
+    if (!item) return;
+    setMenu(false);
+    var kind = item.getAttribute('data-get');
+    var url = '/download/' + kind + '?token=' + encodeURIComponent(TOKEN);
+    // A tab opened now, while the click still counts, so the browser doesn't block it as a popup.
+    var tab = kind === 'pdf' ? window.open('about:blank', 'sprint-review-pdf') : null;
+    (dirty ? save() : Promise.resolve()).then(function () {
+      if (tab) { tab.location.href = url; return; }
+      setStatus('Preparing the ' + (kind === 'pptx' ? 'PowerPoint' : 'HTML file') + '…');
+      return fetch(url).then(function (r) {
+        if (!r.ok) return r.text().then(function (t) { throw new Error(t || r.status); });
+        var name = (/filename="([^"]+)"/.exec(r.headers.get('content-disposition') || '') || [])[1] || 'sprint-review.' + kind;
+        return r.blob().then(function (blob) {
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = name;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+          setStatus('Downloaded ' + name);
+        });
+      });
+    }).catch(function (err) { if (tab) tab.close(); setStatus(err.message, 'error'); });
+  });
   window.addEventListener('message', function (e) {
     if (e.source !== deck.contentWindow || !e.data || e.data.type !== 'sprint-review:slide') return;
     slide = e.data.n; total = e.data.total;
     api('POST', '/api/slide', { n: slide }).catch(function () {});
     document.getElementById('where').textContent = slide + ' / ' + total;
   });
-  document.getElementById('save').onclick = save;
+  document.getElementById('save').onclick = function () { save().catch(function () {}); };
   document.getElementById('live').onclick = function () { window.open('/live?token=' + encodeURIComponent(TOKEN), 'sprint-review-live'); };
   document.getElementById('prev').onclick = function () { deck.contentWindow.postMessage({ type: 'sprint-review:go', to: 'prev' }, '*'); };
   document.getElementById('next').onclick = function () { deck.contentWindow.postMessage({ type: 'sprint-review:go', to: 'next' }, '*'); };
-  document.addEventListener('keydown', function (e) { if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); } });
+  document.addEventListener('keydown', function (e) { if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save().catch(function () {}); } });
   window.addEventListener('beforeunload', function (e) { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 
   api('GET', '/api/review').then(function (r) { return r.json(); }).then(function (data) { review = data; draw(); preview(); });

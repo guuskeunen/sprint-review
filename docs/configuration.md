@@ -304,6 +304,6 @@ model:
 |---|---|---|
 | `dir` | `sprint-reviews` | Each review goes in `<dir>/<last day of the sprint>/`. `--out` overrides the whole path. |
 | `markdown` | `true` | Also write `review.md`. |
-| `pptx` | `false` | Also write `deck.pptx`, an editable PowerPoint with speaker notes. Needs `pptxgenjs` installed (`npm i -D pptxgenjs`). `--pptx` does the same for one run. |
+| `pptx` | `auto` | Also write `deck.pptx`, an editable PowerPoint with speaker notes. `auto` writes it whenever `pptxgenjs` is installed (`npm i -D pptxgenjs`); `true` requires it, `false` turns it off. `--pptx` asks for it for one run. |
 
 Every run also adds a line to `<dir>/costs.csv`: the dates, the models that answered, the tokens and the estimated cost in US dollars. The CLI prints the run's cost and the total so far.

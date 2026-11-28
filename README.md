@@ -64,7 +64,7 @@ Most AI summary tools hand your history to a model and hope for the best. sprint
 | `review.json` | Everything on the slides. Edit it, then `sprint-review render` rebuilds the deck. |
 | `review.md` | A Markdown summary for a pull request, Slack or an email. |
 | `checks.md` | What the checks corrected, moved or dropped, and what the second reader flagged. |
-| `deck.pptx` | Optional (`--pptx`): the same deck as an editable PowerPoint, with speaker notes. |
+| `deck.pptx` | When `pptxgenjs` is installed: the same deck as an editable PowerPoint, with speaker notes. |
 
 The deck tells the sprint as a story: a cover with your logo and color, the sprint in one sentence, one slide per big theme whose title says what users can do now (with a screenshot when one fits), the smaller themes as cards, before and after slides, what else shipped, the roadmap, usage numbers, and questions for your audience. It follows presentation research: four text sizes, nothing under 24 px, one message per slide. See [how the deck is designed](https://github.com/guuskeunen/sprint-review/blob/main/docs/design.md).
 
@@ -108,7 +108,7 @@ sprint-review --from v1.4.0 --to v1.5.0              # between two tags
 sprint-review edit sprint-reviews/2026-11-16/review.json   # editor beside the live deck
 sprint-review render sprint-reviews/2026-11-16/review.json # rebuild after a hand edit
 sprint-review --pptx --slack                          # also PowerPoint, and post to Slack
-sprint-review --no-edit                               # don't open the editor afterwards
+sprint-review --no-edit                               # don't open the deck and editor afterwards
 sprint-review capture                                 # photograph your staging pages
 sprint-review doctor                                  # check the setup
 ```

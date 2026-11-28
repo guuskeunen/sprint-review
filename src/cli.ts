@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { ConfigError, configTemplate, findConfigFile, loadConfig, normalize, type Config } from './config.ts';
 import { generate, missedWork, NothingToReview, onBranch, rangeFor } from './review/generate.ts';
@@ -57,11 +57,11 @@ ${bold('Options for generate')}
   --to <ref>        End at a tag or commit, or with dates the branch to read
                     (default: sprint.branch, else HEAD)
   --out <dir>       Where to write (default: sprint-reviews/<date>)
-  --pptx            Also write deck.pptx (needs pptxgenjs)
+  --pptx            Write deck.pptx (by default when pptxgenjs is installed)
   --slack           Post the summary to SLACK_WEBHOOK_URL
   --deck-url <url>  Link to the published deck, for the Slack message
   --dry-run         Show what would be sent to the AI, without calling it
-  --no-edit         Don't open the editor afterwards (it never opens in CI or without a terminal)
+  --no-edit         Don't open the deck and start the editor afterwards (never in CI or without a terminal)
   -c, --config      Path to the config file
   -q, --quiet       Only print the paths of what was written
   --json            Print the result as JSON
@@ -190,10 +190,11 @@ async function run(flags: Flags): Promise<number> {
   if (slack) out(`  ${bold('Slack')}    ${slack === 'posted' ? green('posted') : yellow(slack)}`);
   out(`  ${bold('Cost')}     ${costLine(result, ledger)} ${dim(rel(ledger.file))}`);
   if (!config.brand.color && !config.brand.logo && !config.brand.from) out(`\n  ${yellow('!')} ${dim('The deck has the default look. Set brand.from to your website for your logo, color and fonts.')}`);
-  // In a terminal the review opens in the editor: click a text to change it, saving rebuilds the deck.
+  // In a terminal the deck opens, with Download (PDF, PowerPoint) to share it and Edit, which opens the
+  // editor that keeps running here: click a text to change it, saving rebuilds the deck.
   if (process.stdout.isTTY && !process.env.CI && !flags['no-edit']) {
     out('');
-    return edit(files.review, flags.config, undefined);
+    return edit(files.review, flags.config, undefined, files.deck);
   }
   out(`\n  ${dim('Change anything:')} sprint-review edit ${rel(files.review!)}`);
   out('');
@@ -254,16 +255,33 @@ async function rerender(file: string | undefined, configPath: string | undefined
   return 0;
 }
 
-async function edit(file: string | undefined, configPath: string | undefined, port: string | undefined): Promise<number> {
+/** Runs the editor until Ctrl+C. It opens the editor, or with `deck` that deck, whose Edit button opens the editor. */
+async function edit(file: string | undefined, configPath: string | undefined, port: string | undefined, deck?: string): Promise<number> {
   if (!file) {
     err('Give the path of a review.json: sprint-review edit sprint-reviews/2026-11-10/review.json');
     return 2;
   }
   const config = await withWebsiteBrand(configOrDefaults(configPath));
-  const editor = await startEditor(resolve(file), config, port ? Number(port) : 4321);
-  out(`${orange('●')} ${bold('Editor')} running at ${bold(editor.url)}`);
-  out(dim('  Save rebuilds deck.html next to the review. Ctrl+C stops the editor.'));
-  openBrowser(editor.url);
+  let editor: Awaited<ReturnType<typeof startEditor>>;
+  try {
+    editor = await startEditor(resolve(file), config, port ? Number(port) : 4321);
+  } catch (e) {
+    if (!deck || (e as NodeJS.ErrnoException).code !== 'EADDRINUSE') throw e;
+    // An editor from an earlier review holds the port: the deck still opens, to download and present.
+    openBrowser(pathToFileURL(deck).href);
+    out(`${orange('●')} ${bold('Deck')} opened in your browser ${dim('· Download shares it as a PDF or PowerPoint')}`);
+    out(dim(`  The editor's port is taken by another editor. To edit: stop it, then run sprint-review edit ${shown(file)}`));
+    return 0;
+  }
+  if (deck) {
+    openBrowser(pathToFileURL(deck).href);
+    out(`${orange('●')} ${bold('Deck')} opened in your browser ${dim('· Download shares it as a PDF or PowerPoint · Edit opens the editor')}`);
+    out(dim(`  Editor running at ${editor.url}. Save rebuilds the deck. Ctrl+C stops the editor.`));
+  } else {
+    out(`${orange('●')} ${bold('Editor')} running at ${bold(editor.url)}`);
+    out(dim('  Save rebuilds deck.html next to the review. Ctrl+C stops the editor.'));
+    openBrowser(editor.url);
+  }
   return new Promise<number>((done) => process.on('SIGINT', () => editor.close().then(() => done(0))));
 }
 

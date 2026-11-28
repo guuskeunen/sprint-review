@@ -9,10 +9,11 @@ import { render } from '../review/generate.ts';
 import { validReview } from '../review/review.ts';
 
 export { validReview };
-import { writeOutputs } from '../review/output.ts';
+import { pptxOf, writeOutputs } from '../review/output.ts';
 import { ICONS } from '../deck/icons-data.ts';
 import { VALUE_KEYS } from '../deck/icons.ts';
 import { labelsFor } from '../deck/i18n.ts';
+import { fileName } from '../deck/plan.ts';
 import { EFFECT_WORDS_MAX, NOTES_WORDS_MAX, POINT_WORDS_MAX, TITLE_WORDS_MAX } from '../ai/writer.ts';
 
 const PAGE = readFileSync(fileURLToPath(new URL('../../assets/editor.html', import.meta.url)), 'utf8');
@@ -79,6 +80,27 @@ export async function startEditor(file: string, config: Config, port = 4321): Pr
       // The live view can't send headers (a link, an EventSource), so it carries the token in the address.
       const queryToken = url.searchParams.get('token') === token;
       if (url.pathname === '/live' && req.method === 'GET') return queryToken ? send(200, 'text/html; charset=utf-8', livePage) : send(403, 'text/plain', 'Missing token.');
+      // Downloads of the saved review, as links (no headers there either): the editor saves before it asks.
+      const get = /^\/download\/(pdf|pptx|html)$/.exec(url.pathname)?.[1];
+      if (get && req.method === 'GET') {
+        if (!queryToken) return send(403, 'text/plain', 'Missing token.');
+        const review = read();
+        const name = fileName(review);
+        if (get === 'pptx') {
+          const pptx = await pptxOf(review, config);
+          res.writeHead(200, { 'content-type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'content-disposition': `attachment; filename="${name}.pptx"`, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' });
+          res.end(pptx);
+          return;
+        }
+        const html = render(review, config).html;
+        if (get === 'html') {
+          res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'content-disposition': `attachment; filename="${name}.html"`, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' });
+          res.end(html);
+          return;
+        }
+        // PDF: the deck on its own, which opens the print dialog with every slide as a page.
+        return send(200, 'text/html; charset=utf-8', html.replace('</body>', '<script>window.addEventListener("load", function () { setTimeout(function () { window.print(); }, 400); });</script>\n</body>'));
+      }
       if (url.pathname === '/api/events' && req.method === 'GET') {
         if (!queryToken) return send(403, 'text/plain', 'Missing token.');
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive', 'x-content-type-options': 'nosniff' });
