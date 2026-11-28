@@ -1,6 +1,6 @@
 {
   "name": "sprint-review",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Write a sprint review deck from this repository's git history: themes in business language, every line checked against the real commits, before-and-after screenshots.",
   "author": {
     "name": "Guus Keunen",

@@ -2,6 +2,31 @@
 
 All notable changes are listed here, written per release from the commit messages ([Conventional Commits](https://www.conventionalcommits.org)). Versions follow [Semantic Versioning](https://semver.org).
 
+## [0.6.0](https://github.com/guuskeunen/sprint-review/compare/sprint-review-v0.5.0...sprint-review-v0.6.0) (2026-11-28)
+
+
+### Added
+
+* **brand:** a website brand also puts its font files inside the deck ([#53](https://github.com/guuskeunen/sprint-review/issues/53)) ([076bdf0](https://github.com/guuskeunen/sprint-review/commit/076bdf0b1bae09b8696357c2c0f6fae89955d7cf))
+* **deck:** download the PDF and PowerPoint right where the deck opens ([#57](https://github.com/guuskeunen/sprint-review/issues/57)) ([09b27fa](https://github.com/guuskeunen/sprint-review/commit/09b27fa4c6eeeac2eebf0464c06b84c24181b75a))
+* **init:** ask for the product and website, and show the brand it finds ([#55](https://github.com/guuskeunen/sprint-review/issues/55)) ([cc9a936](https://github.com/guuskeunen/sprint-review/commit/cc9a93658fdb28b6c79e2a824835e9dac69f5a81))
+* **screens:** screenshots.descriptions tells the writer what each picture shows ([#58](https://github.com/guuskeunen/sprint-review/issues/58)) ([a6f54ea](https://github.com/guuskeunen/sprint-review/commit/a6f54ea4f1403ee33e26dfacfa9aab6986f24e65))
+* **screens:** the model looks at the screenshots, so no slide gets the wrong one ([#59](https://github.com/guuskeunen/sprint-review/issues/59)) ([0316e57](https://github.com/guuskeunen/sprint-review/commit/0316e57fe177be05a24bf0fc32722104869ee28c))
+
+
+### Fixed
+
+* **deck:** name the product on the cover when there is no organization ([#56](https://github.com/guuskeunen/sprint-review/issues/56)) ([1db56c1](https://github.com/guuskeunen/sprint-review/commit/1db56c1bea26f0a4c7b670a5fd11f7713b9ba400))
+* **screens:** say why captures from after the sprint's end are left out ([#54](https://github.com/guuskeunen/sprint-review/issues/54)) ([708c16c](https://github.com/guuskeunen/sprint-review/commit/708c16ca0bf12ce10dc85d88428326c560054df1))
+* what a day of real runs showed: branch, key check, progress, input checks, config lookup, init and plugin key ([#52](https://github.com/guuskeunen/sprint-review/issues/52)) ([42183b8](https://github.com/guuskeunen/sprint-review/commit/42183b80fca9fd4755d9d619f00c3a53615cf61f))
+* what the essentium sprint review showed: streaming, phone slides, headline, download, roadmap ([#51](https://github.com/guuskeunen/sprint-review/issues/51)) ([dc58014](https://github.com/guuskeunen/sprint-review/commit/dc58014c8d1cab40a09cf1099cb3a15f2514c377))
+
+
+### Docs
+
+* mcprush and M8ven badges in the README ([#50](https://github.com/guuskeunen/sprint-review/issues/50)) ([0831023](https://github.com/guuskeunen/sprint-review/commit/0831023319656aa3a4fc9dba73aa41887ca23d8f))
+* mcpservers.org badge and absolute README links ([#48](https://github.com/guuskeunen/sprint-review/issues/48)) ([c3acdf7](https://github.com/guuskeunen/sprint-review/commit/c3acdf7cb0846fe82bc7cc785d8fb32fbedf560c))
+
 ## [0.5.0](https://github.com/guuskeunen/sprint-review/compare/sprint-review-v0.4.2...sprint-review-v0.5.0) (2026-11-22)
 
 
