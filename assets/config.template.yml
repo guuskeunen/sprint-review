@@ -49,14 +49,12 @@ ignore:
 #   - Call the mobile app "the app", never "the mobile client".
 
 # Before and after screenshots (optional). See docs/screenshots.md.
-# screenshots:
+{{screenshots}}
 #   source: git                          # git, folder, capture or none
 #   dir: e2e/__screenshots__             # where your visual test pictures live
 #   names:
 #     dashboard: Dashboard
 #     customer-page: Customer page
-#   check: true                          # the model looks at each picture, so no slide gets the wrong one.
-#                                        # Sends the screenshots to your model provider (mask private bits).
 #   ignore: { left: 240, top: 64 }       # side menu and top bar, in pixels
 
 # Milestones: lines like "- [x] Online booking" in this file become the roadmap slide.

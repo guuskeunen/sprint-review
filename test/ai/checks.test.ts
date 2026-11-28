@@ -181,10 +181,11 @@ test('the writer reads what each picture shows, since it never sees the pictures
   assert.throws(() => normalize({ screenshots: { source: 'capture', pages: { a: '/a' }, descriptions: { a: 3 } } }, '/tmp'), /screenshots.descriptions/);
 });
 
-test('screenshots.check is off unless turned on, and must be true or false', async () => {
+test('screenshots.check is on unless turned off, and must be true or false', async () => {
   const { normalize } = await import('../../src/config.ts');
   const on = (check: unknown) => normalize({ screenshots: { source: 'git', dir: 'shots', ...(check === undefined ? {} : { check }) } }, '/tmp').screenshots;
-  assert.equal((on(undefined) as { check: boolean }).check, false);
+  assert.equal((on(undefined) as { check: boolean }).check, true);
+  assert.equal((on(false) as { check: boolean }).check, false);
   assert.equal((on(true) as { check: boolean }).check, true);
   assert.throws(() => on('yes'), /screenshots.check/);
 });

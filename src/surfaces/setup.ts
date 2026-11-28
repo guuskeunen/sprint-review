@@ -8,6 +8,8 @@ export interface SetupAnswers {
   description: string;
   website: string | null;
   audience: string;
+  /** screenshots.check: the AI may look at the screenshots, once there are any. Yes unless you say no. */
+  checkScreens?: boolean;
 }
 
 /** Asks one question with a default; an empty answer keeps the default. */
@@ -48,7 +50,9 @@ export async function askSetup(ask: Ask, start: SetupAnswers, say: (line: string
     say(`  Could not read a brand from ${url}. Try another address, or - to skip and set brand.color and brand.logo yourself.`);
   }
   const audience = (await ask(`Who watches the review: ${AUDIENCE_CHOICES.join(', ')}, or your own words`, start.audience)).trim() || start.audience;
-  return { name, description, website, audience };
+  // Asked, since it sends your screenshots to the model provider; Enter says yes.
+  const check = (await ask('Let the AI look at your screenshots, once you add them, so no slide gets the wrong one? It sends them to your model provider (y/n)', start.checkScreens === false ? 'n' : 'y')).trim();
+  return { name, description, website, audience, checkScreens: !/^n/i.test(check) };
 }
 
 /** What a website gives the deck, in a few words: "color #6965db, logo, font Assistant". Null when it gives nothing. */
@@ -69,7 +73,14 @@ export function configText(template: string, a: SetupAnswers): string {
     .replace('{{name}}', JSON.stringify(a.name))
     .replace('{{description}}', JSON.stringify(a.description))
     .replace('{{audience}}', AUDIENCE_CHOICES.includes(a.audience) ? a.audience : JSON.stringify(a.audience))
-    .replace('{{website}}', a.website ? `from: ${a.website}` : '# from: https://www.example.com      # your website');
+    .replace('{{website}}', a.website ? `from: ${a.website}` : '# from: https://www.example.com      # your website')
+    .replace('{{screenshots}}', screenshotLines(a.checkScreens ?? true));
+}
+
+/** The start of the screenshots block: check is on by default, so a no writes a real block that keeps it off. */
+function screenshotLines(check: boolean): string {
+  const about = '# the AI looks at each picture, so no slide gets the wrong one (sends them to your model provider)';
+  return check ? `# screenshots:\n#   check: true                        ${about}` : `screenshots:\n  check: false                         ${about}`;
 }
 
 function packageJson(dir: string): { name?: string; homepage?: string } | null {

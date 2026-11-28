@@ -140,7 +140,7 @@ interface ScreenCommon {
   names: Record<string, string>;
   /** What each picture shows, by screen key: the writer reads this to choose a picture, since it never sees one. */
   descriptions: Record<string, string>;
-  /** Let the model look at the pictures: describe each one before writing, and check each theme's pick after. Sends the pictures to the model. */
+  /** Let the model look at the pictures: describe each one before writing, and check each theme's pick after. Sends the pictures to the model. On unless set to false. */
   check: boolean;
   ignore: { left: number; top: number };
   /** A short clip per screen key (an .mp4 or .webm of a few seconds), shown looping instead of its picture. */
@@ -306,7 +306,7 @@ function screenshots(value: unknown): ScreenshotConfig {
   const source = str(s.source, 'screenshots.source') ?? (s.dir ? 'git' : s.before ? 'folder' : 'none');
   const names = strMap(s.names, 'screenshots.names');
   const descriptions = strMap(s.descriptions, 'screenshots.descriptions');
-  const check = s.check === undefined ? false : bool(s.check, 'screenshots.check');
+  const check = s.check === undefined ? true : bool(s.check, 'screenshots.check');
   const ig = obj(s.ignore ?? {}, 'screenshots.ignore');
   const ignore = { left: int(ig.left, 'screenshots.ignore.left', 0, 0, 4000), top: int(ig.top, 'screenshots.ignore.top', 0, 0, 4000) };
   const videos = strMap(s.videos, 'screenshots.videos');

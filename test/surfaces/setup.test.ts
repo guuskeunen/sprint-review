@@ -28,7 +28,7 @@ test('init asks for the website, reads its brand right away and asks again when 
   const said: string[] = [];
   const { ask, asked } = answering('Acme Planner', 'Planning for repair shops.', 'bad.test', 'acme.test', 'team');
   const a = await askSetup(ask, start, (l) => said.push(l), site);
-  assert.deepEqual(a, { name: 'Acme Planner', description: 'Planning for repair shops.', website: 'https://acme.test', audience: 'team' });
+  assert.deepEqual(a, { name: 'Acme Planner', description: 'Planning for repair shops.', website: 'https://acme.test', audience: 'team', checkScreens: true });
   assert.equal(asked.filter((q) => /website/i.test(q)).length, 2);
   assert.match(said.join('\n'), /Could not read a brand from https:\/\/bad\.test/);
   assert.match(said.join('\n'), /Found on https:\/\/acme\.test: color #6965db, logo/);
@@ -53,6 +53,23 @@ test('the config init writes takes its brand from the website, not from a defaul
   assert.equal(c.audience, 'a room of shop owners');
   const none = normalize(parse(configText(template, start)), dir);
   assert.deepEqual([none.brand.from, none.brand.color], [null, null]);
+});
+
+test('init asks whether the AI may look at the screenshots: yes unless you say no, and a no is written down', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sprint-review-init-'));
+  const yes = await askSetup(answering().ask, start, () => {}, site);
+  assert.equal(yes.checkScreens, true, 'Enter says yes');
+  const { ask, asked } = answering('', '', '-', '', 'no');
+  const no = await askSetup(ask, start, () => {}, site);
+  assert.equal(no.checkScreens, false);
+  assert.match(asked.at(-1)!, /sends them to your model provider/);
+
+  assert.equal(parse(configText(template, yes)).screenshots, undefined, 'a yes is the default: the block stays a comment');
+  const off = parse(configText(template, no));
+  assert.deepEqual(off.screenshots, { check: false }, 'a real block, so the no holds once a source is set');
+  assert.equal(normalize(off, dir).screenshots.source, 'none');
+  const withSource = normalize({ ...off, screenshots: { ...off.screenshots, source: 'git', dir: 'shots' } }, dir).screenshots;
+  assert.equal((withSource as { check: boolean }).check, false);
 });
 
 test('the website is guessed from package.json, but not when that is the repository page', () => {
