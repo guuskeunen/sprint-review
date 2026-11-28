@@ -187,6 +187,7 @@ Before and after slides, and pictures on theme slides. See the [screenshots guid
 | `pages`, `baseUrl`, `devices`, `mask`, `storageState`, `login`, `wait`, `storage`, `onReview` | `capture`: the tool takes the pictures itself. See [taking screenshots](screenshots.md#option-3-the-tool-takes-them-capture). |
 | `names` | Readable names per screen key. Also sets the order. |
 | `descriptions` | What each picture shows, in a line per screen key: `three-ws: Why to contact this company now`. The model never sees the pictures and chooses one by its name, so a name like "The 3 Ws" can land on the wrong theme; a description lets it choose by content, and leave a slide without a picture when none fits. |
+| `check` | The model looks at the pictures: it describes each one before writing (a line in `descriptions` wins) and checks the picture each theme chose after, so a picture that doesn't show the slide's change makes way for the icon. Sends the screenshots to your model provider, with `mask` applied; needs a model that reads images. Default `true`; `false` keeps the screenshots on your machine and lets the writer choose by name (and `descriptions`) only. See [letting the model look](screenshots.md#letting-the-model-look-at-the-pictures). |
 | `ignore.left` | Pixels on the left to skip when comparing desktop pictures (a side menu). |
 | `ignore.top` | Pixels at the top to skip (a top bar). |
 

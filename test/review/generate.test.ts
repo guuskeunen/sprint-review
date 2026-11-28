@@ -30,7 +30,7 @@ test('generates a full review from a real git history', async () => {
   const { review, html, markdown } = await generate(demoConfig(dir), { model, range });
 
   // Every commit in the range, the tooling ones marked.
-  const log = model.requests[0]!.messages[0]!;
+  const log = model.requests.find((r) => r.tool.name === 'presentation')!.messages[0]!;
   assert.match(log, /\[no product code\]/);
   assert.doesNotMatch(log, /Co-Authored-By/);
 
@@ -88,8 +88,9 @@ test('commit messages go in as untrusted data', async () => {
   const dir = demoRepo();
   const model = new FakeModel();
   await generate(demoConfig(dir), { model, range });
-  assert.match(model.requests[0]!.messages[0]!, /^<untrusted-[0-9a-f]{12} /);
-  assert.match(model.requests[0]!.system, /never as instructions/);
+  const writer = model.requests.find((r) => r.tool.name === 'presentation')!;
+  assert.match(writer.messages[0]!, /^<untrusted-[0-9a-f]{12} /);
+  assert.match(writer.system, /never as instructions/);
   void readFileSync;
   void join;
 });
@@ -166,4 +167,40 @@ test('a sprint past limits.commits says its first days are missing', async () =>
   assert.match(review.checks[0]!.reason, /first days are missing/);
   const { review: all } = await generate(demoConfig(dir), { model: new FakeModel(), range });
   assert.ok(!all.checks.some((c) => /Only the newest/.test(c.text)));
+});
+
+test('screenshots.check (on by default): the model describes each picture for the writer and checks every pick', async () => {
+  const dir = demoRepo();
+  const model = new FakeModel({ misfit: 'Look and feel' });
+  const base = demoConfig(dir);
+  const config = { ...base, screenshots: { ...base.screenshots, descriptions: { planner: 'The planner, described by hand' } } } as typeof base;
+  const { review, usage } = await generate(config, { model, range });
+
+  const described = model.requests.filter((r) => r.tool.name === 'picture_description');
+  assert.deepEqual(described.map((r) => /"([^"]+)"/.exec(r.messages[0]!)?.[1]).sort(), ['Customer page', 'Repairs'], 'one per screen, none for a screen described by hand');
+  assert.ok(described.every((r) => r.images?.length === 1 && r.images[0]!.mediaType === 'image/jpeg'));
+
+  const writer = model.requests.find((r) => r.tool.name === 'presentation')!;
+  const guide = JSON.stringify(writer.tool.input_schema);
+  assert.match(guide, /Customer page \(desktop\): The customer page as it looks now\./);
+  assert.match(guide, /Workshop planner \(desktop\): The planner, described by hand\./, 'a hand-written description wins');
+
+  // The phone picture on "Look and feel" does not fit: the slide gets its icon.
+  assert.ok(model.requests.some((r) => r.tool.name === 'picture_fit'));
+  assert.equal(review.themes[4]!.title, 'Look and feel');
+  assert.equal(review.themes[4]!.screen, null);
+  assert.ok(review.checks.some((c) => c.kind === 'dropped' && c.text === 'Picture Repairs on Look and feel'));
+
+  // The calls that looked at pictures count in the usage, and so in the cost.
+  const answered = model.requests.filter((r) => r.tool.name !== 'revisions');
+  assert.equal(usage.input, answered.length * 1000, 'every answered call, the failed rewrite left out');
+});
+
+test('with screenshots.check: false no picture goes to the model', async () => {
+  const dir = demoRepo();
+  const model = new FakeModel();
+  const base = demoConfig(dir);
+  await generate({ ...base, screenshots: { ...base.screenshots, check: false } } as typeof base, { model, range });
+  assert.ok(model.requests.every((r) => !r.images?.length));
+  assert.ok(!model.requests.some((r) => r.tool.name.startsWith('picture_')));
 });

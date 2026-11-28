@@ -5,7 +5,7 @@ A one-page answer for whoever has to approve sprint-review: what it reads, what 
 ## In short
 
 - **It runs on your machine or in your own CI.** There is no sprint-review server, no account and no telemetry. The author never sees your data.
-- **It sends commit text, not code.** Commit subjects, descriptions and changed file names go to the AI provider you configure, with your own key. Source code, diffs and screenshots never leave.
+- **It sends commit text, not code.** Commit subjects, descriptions and changed file names go to the AI provider you configure, with your own key. Source code and diffs never leave. Screenshots, when you set them up, go to the same provider to check each slide's picture; `screenshots.check: false` keeps them local.
 - **You choose the provider,** including ones your company already approved (Azure OpenAI, Amazon Bedrock) or a local model where nothing leaves your network.
 - **`--dry-run` shows exactly what would be sent,** before anything is.
 
@@ -14,7 +14,7 @@ A one-page answer for whoever has to approve sprint-review: what it reads, what 
 | Source | What | When |
 |---|---|---|
 | Your git repository | Commit hashes, dates, subjects, descriptions and changed file names in the range; the roadmap file at the end of the sprint | Always |
-| Screenshot pictures | Pixels, compared locally | When `screenshots` is set |
+| Screenshot pictures | Pixels, compared locally; also sent to the model, unless `screenshots.check: false` | When `screenshots` is set |
 | Your pages (capture) | Screenshots of the URLs you list, in a local browser | Only with `screenshots.source: capture` |
 | The GitHub API | Title and description of the pull request behind each commit | Only when `GITHUB_TOKEN` or `GH_TOKEN` is set (always in GitHub Actions), and `github.pullRequests` isn't `false` |
 | A usage file | The numbers you put in it | When `usage` is set |
@@ -23,15 +23,16 @@ It needs **read access** to the repository only. It writes nothing to git and ne
 
 ## What it sends, and where
 
-Each run makes two or three calls to **one** AI provider: the one in `model.provider`, with the key from your environment.
+Each run makes two or three calls (plus one per screenshot with screenshots set up) to **one** AI provider: the one in `model.provider`, with the key from your environment.
 
 | Call | Gets |
 |---|---|
 | Writer | Your product description, audience and rules from the config; the commit log described above (up to `model.maxInputChars`); the names of screens |
 | Second reader | Only the text of the slides |
 | Rewrite (when the reader flagged lines) | The text of the slides and the flagged lines |
+| Picture checks (screenshots set up, unless `screenshots.check: false`) | One screenshot per call, scaled down to 1280 pixels wide and with your `mask` applied: first to say what it shows, then with one slide's text to say whether it fits |
 
-**Never sent:** source code, diffs, file contents, screenshots or other pictures, usage numbers, environment variables, secrets.
+**Never sent:** source code, diffs, file contents, screenshots or other pictures when `screenshots.check` is `false`, usage numbers, environment variables, secrets.
 
 Commit and pull request text is treated as untrusted: it's wrapped in random markers and the model is told it's data, so a commit message that says "ignore your instructions" is just a commit message. Whatever the model answers goes through checks in code, and anything that can't be traced to a real commit is dropped.
 

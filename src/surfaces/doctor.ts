@@ -36,6 +36,12 @@ export async function doctorChecks(config: Config, cwd = process.cwd(), env = pr
     const found = await loadPlaywright();
     add(found !== null, `Playwright is installed for screenshots${found?.core ? ' (playwright-core, with your Chrome)' : ''}`, 'npm install --save-dev playwright-core (uses your installed Chrome), or playwright && npx playwright install chromium');
   }
+  if (s.source !== 'none') {
+    const where = isLocal(config.model.provider) ? 'they stay on this machine' : `they are sent to ${config.model.provider}`;
+    add(true, s.check
+      ? `screenshots.check is on: ${config.model.name} looks at the pictures, so ${where}${isLocal(config.model.provider) ? '' : '. Set screenshots.check: false to keep them here'}`
+      : `screenshots.check is off: the model chooses pictures by name only. Set it to true to let it look (${where})`);
+  }
   if (config.output.pptx === true) {
     let pptx = false;
     try {

@@ -145,6 +145,8 @@ interface ScreenCommon {
   names: Record<string, string>;
   /** What each picture shows, by screen key: the writer reads this to choose a picture, since it never sees one. */
   descriptions: Record<string, string>;
+  /** Let the model look at the pictures: describe each one before writing, and check each theme's pick after. Sends the pictures to the model. On unless set to false. */
+  check: boolean;
   ignore: { left: number; top: number };
   /** A short clip per screen key (an .mp4 or .webm of a few seconds), shown looping instead of its picture. */
   videos: Record<string, string>;
@@ -321,6 +323,7 @@ function screenshots(value: unknown): ScreenshotConfig {
   const source = str(s.source, 'screenshots.source') ?? (s.dir ? 'git' : s.before ? 'folder' : 'none');
   const names = strMap(s.names, 'screenshots.names');
   const descriptions = strMap(s.descriptions, 'screenshots.descriptions');
+  const check = s.check === undefined ? true : bool(s.check, 'screenshots.check');
   const ig = obj(s.ignore ?? {}, 'screenshots.ignore');
   const ignore = { left: int(ig.left, 'screenshots.ignore.left', 0, 0, 4000), top: int(ig.top, 'screenshots.ignore.top', 0, 0, 4000) };
   const videos = strMap(s.videos, 'screenshots.videos');
@@ -329,13 +332,13 @@ function screenshots(value: unknown): ScreenshotConfig {
   if (source === 'git') {
     const dir = str(s.dir, 'screenshots.dir');
     if (!dir) throw new ConfigError('screenshots.dir is required when screenshots.source is git.');
-    return { source: 'git', dir: dir.replace(/\/+$/, ''), names, descriptions, ignore, videos };
+    return { source: 'git', dir: dir.replace(/\/+$/, ''), names, descriptions, check, ignore, videos };
   }
   if (source === 'folder') {
     const before = str(s.before, 'screenshots.before');
     const after = str(s.after, 'screenshots.after');
     if (!before || !after) throw new ConfigError('screenshots.before and screenshots.after are required when screenshots.source is folder.');
-    return { source: 'folder', before, after, names, descriptions, ignore, videos };
+    return { source: 'folder', before, after, names, descriptions, check, ignore, videos };
   }
   if (source === 'capture') {
     const pages: CaptureConfig['pages'] = {};
@@ -355,6 +358,7 @@ function screenshots(value: unknown): ScreenshotConfig {
       source: 'capture',
       names,
       descriptions,
+      check,
       ignore,
       videos,
       capture: {

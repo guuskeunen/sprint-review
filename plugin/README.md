@@ -20,7 +20,7 @@ https://github.com/guuskeunen/sprint-review/blob/main/docs/integrations.md.
   OpenRouter, Azure, Amazon Bedrock, or a local model that sends nothing): those commit messages
   and file paths, pull request titles and descriptions, and your product description, with your own
   API key.
-  Screenshots are not sent to the model.
+  Screenshots set up in the config are sent too, to check each slide's picture, unless `screenshots.check: false`.
 - **Reads from GitHub**, only when `GITHUB_TOKEN` is set: the pull requests merged in the sprint.
 - **Only when you set them up:** posts the summary to your Slack webhook (`--slack`),
   reads your own website for the logo and color (`brand.from`), and opens your app in Chrome to

@@ -55,7 +55,7 @@ The deck gets much better once the AI knows what the product is and who's watchi
 npx @guuskeunen/sprint-review init
 ```
 
-It asks for the product's name, what it is, your website and who watches. It reads the website right away and shows what the deck takes from it: the logo, brand color and fonts. Without a terminal (in CI, or from a script), it takes `--website`, `--description` and `--preset` instead, and guesses the website from `homepage` in `package.json`.
+It asks for the product's name, what it is, your website, who watches, and whether the AI may look at your screenshots (yes by default; it checks that each slide gets a picture that shows its change, and sends the screenshots to your model provider). It reads the website right away and shows what the deck takes from it: the logo, brand color and fonts. Without a terminal (in CI, or from a script), it takes `--website`, `--description` and `--preset` instead, and guesses the website from `homepage` in `package.json`.
 
 The answers go into `sprint-review.config.yml`, which looks like this:
 

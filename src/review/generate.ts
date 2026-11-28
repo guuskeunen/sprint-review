@@ -6,6 +6,7 @@ import { History, type Range } from '../git/history.ts';
 import { rangeDays, screens as openScreens, type Screens } from '../screens/screenshots.ts';
 import { capture } from '../screens/capture.ts';
 import { write } from '../ai/writer.ts';
+import { checkPicks, describePictures, type Picture } from '../ai/pictures.ts';
 import { githubRepo, withPullRequests } from '../git/github.ts';
 import type { ModelClient } from '../ai/model.ts';
 import { fill, labelsFor, longDate, shortDate } from '../deck/i18n.ts';
@@ -138,13 +139,24 @@ export async function generate(config: Config, options: GenerateOptions): Promis
   if (config.screenshots.source !== 'none') step(`${changed.length} screen${changed.length === 1 ? '' : 's'} changed, ${available.size} picture${available.size === 1 ? '' : 's'} available`);
   if (shots.note) step(shots.note);
 
-  step(`Writing the slides with ${config.model.name}${config.model.provider === 'anthropic' ? '' : ` via ${config.model.provider}`}`);
   const meter = metered(options.model, step);
+  const looked = await describeScreens(meter, config, available, shots, step);
+  config = looked.config;
+
+  step(`Writing the slides with ${config.model.name}${config.model.provider === 'anthropic' ? '' : ` via ${config.model.provider}`}`);
   const { end } = history.ends(range);
   const roadmap = history.milestones(end, config.roadmap);
   const staged = roadmap.filter((m) => m.stage);
   const requests = history.requests(end, config.feedback);
-  const { written, usage } = await write(meter, config, commits, changed.map((c) => c.name), [...available.keys()], staged.map((m) => `${m.stage === 'now' ? 'Now' : 'Next'}: ${m.text}`), requests, staged.length ? [] : roadmap.map((m) => `${m.done ? '[x]' : '[ ]'} ${m.text}`));
+  const { written } = await write(meter, config, commits, changed.map((c) => c.name), [...available.keys()], staged.map((m) => `${m.stage === 'now' ? 'Now' : 'Next'}: ${m.text}`), requests, staged.length ? [] : roadmap.map((m) => `${m.done ? '[x]' : '[ ]'} ${m.text}`));
+  if (config.screenshots.source !== 'none' && config.screenshots.check && written.themes.some((t) => t.screen)) {
+    step('Checking the picture on each slide');
+    const checked = await checkPicks(meter, config, written.themes, (label) => pictureFor(available.get(label), shots));
+    written.themes = checked.themes;
+    written.checks = [...written.checks, ...checked.checks, ...looked.checks];
+  } else written.checks = [...written.checks, ...looked.checks];
+  // Every call went through the meter: the writer's, the reader's and the ones that looked at pictures.
+  const usage = meter.calls.reduce((sum, c) => ({ input: sum.input + c.input, output: sum.output + c.output }), { input: 0, output: 0 });
   const cost = costOf(meter.calls, config.model, today());
   const models = [...new Set(meter.calls.map((c) => c.model))];
 
@@ -213,6 +225,31 @@ export function resolvedBrand(config: Config): Brand {
     logo: own.logo ?? theirs.logo,
     fonts: { heading: own.fonts.heading ?? theirs.fonts.heading, body: own.fonts.body ?? theirs.fonts.body },
   };
+}
+
+/**
+ * screenshots.check: the model says what each screen's picture shows (the desktop one, else the
+ * phone one), so the writer chooses by what is on it. A description in the config wins.
+ */
+async function describeScreens(model: ModelClient, config: Config, available: Map<string, { key: string; device: 'desktop' | 'phone' }>, shots: Screens, step: (m: string) => void): Promise<{ config: Config; checks: Review['checks'] }> {
+  const s = config.screenshots;
+  if (s.source === 'none' || !s.check) return { config, checks: [] };
+  const pictures: Record<string, Picture> = {};
+  for (const shot of [...available.values()].sort((a, b) => (a.device === b.device ? 0 : a.device === 'desktop' ? -1 : 1))) {
+    if (pictures[shot.key] || s.descriptions[shot.key]) continue;
+    const picture = pictureFor(shot, shots);
+    if (picture) pictures[shot.key] = picture;
+  }
+  const count = Object.keys(pictures).length;
+  if (!count) return { config, checks: [] };
+  step(`Looking at ${count} picture${count === 1 ? '' : 's'}`);
+  const seen = await describePictures(model, config, pictures);
+  return { config: { ...config, screenshots: { ...s, descriptions: { ...seen.descriptions, ...s.descriptions } } }, checks: seen.checks };
+}
+
+function pictureFor(shot: { key: string; device: 'desktop' | 'phone' } | undefined, shots: Screens): Picture | null {
+  const png = shot ? shots.picture(shot.key, shot.device) : null;
+  return shot && png ? { name: shots.name(shot.key), png } : null;
 }
 
 /** The changed screens that get a slide: those the model could say in a sentence what changed on. */

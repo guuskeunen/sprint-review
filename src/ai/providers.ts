@@ -109,7 +109,7 @@ export class BedrockClient implements ModelClient {
     const path = `/model/${encodeURIComponent(model)}/converse`;
     const body = JSON.stringify({
       system: [{ text: withToolInstruction(request) }],
-      messages: [{ role: 'user', content: request.messages.map((text) => ({ text })) }],
+      messages: [{ role: 'user', content: [...(request.images ?? []).map((i) => ({ image: { format: i.mediaType === 'image/png' ? 'png' : 'jpeg', source: { bytes: i.data } } })), ...request.messages.map((text) => ({ text }))] }],
       inferenceConfig: { maxTokens: request.maxTokens },
       toolConfig: {
         tools: [{ toolSpec: { name: request.tool.name, description: request.tool.description, inputSchema: { json: request.tool.input_schema } } }],
