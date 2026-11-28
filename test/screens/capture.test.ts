@@ -24,6 +24,19 @@ test('captured screenshots are compared between the last day before the sprint a
   assert.equal(changed.length, 1);
   assert.equal(changed[0]!.device, 'desktop');
   assert.throws(() => normalize({ screenshots: { source: 'capture' } }, dir), /screenshots.pages is required/);
+  assert.equal(shots.note, undefined);
+});
+
+test('captures taken only after the sprint ended are left out, and the run says why', () => {
+  const dir = demoRepo();
+  const fixtures = new URL('../fixtures/screens/', import.meta.url).pathname;
+  const day = join(dir, '.sprint-review/screenshots/2026-11-20');
+  mkdirSync(day, { recursive: true });
+  writeFileSync(join(day, 'planner-desktop.png'), readFileSync(join(fixtures, 'planner-desktop.after.png')));
+  const c = normalize({ screenshots: { source: 'capture', pages: { planner: '/planner' }, baseUrl: 'http://localhost:3000' } }, dir);
+  const shots = screens(c.screenshots, dir, new History(dir), range, { phone: 'phone', desktop: 'desktop' });
+  assert.equal(shots.available().size, 0);
+  assert.match(shots.note ?? '', /from 2026-11-20 are left out.*after the sprint's end \(2026-11-16\)/);
 });
 
 

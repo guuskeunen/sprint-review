@@ -6,7 +6,7 @@ import { palette } from './colors.ts';
 import { buttonIcon, themeIcon, valueIcon } from './icons.ts';
 import { imageSize } from './images.ts';
 import { change, trendPoints } from './numbers.ts';
-import { coverName, coverPicture, fileName, isWide, numbers, planDeck } from './plan.ts';
+import { coverName, coverPicture, fileName, isWide, numbers, planDeck, roadmapMoves } from './plan.ts';
 import type { DeckConfig } from '../config.ts';
 import { fontFaceCss, type FontFace } from '../brand/fonts.ts';
 type PlannedSlide = ReturnType<typeof planDeck>[number];
@@ -49,30 +49,41 @@ export const VIDEO_DATA_URI = /^data:video\/(mp4|webm);base64,[A-Za-z0-9+/=]+$/;
 export const IMAGE_DATA_URI = /^data:image\/(png|jpeg|webp|gif|svg\+xml);base64,[A-Za-z0-9+/=]+$/;
 /**
  * A before or after picture in a box with the after picture's shape, so both show the same size
- * and a frame around the change sits exactly on it at any size. Phones keep their own shape.
+ * and a frame around the change sits exactly on it at any size. A phone shows one screen around
+ * the change; a full-page phone picture from an older review shows its top, without a frame.
  */
 function shot(uri: string, alt: string, s: Review['screens'][number], frame: boolean): string {
   const img = `<img src="${picture(uri)}" alt="${esc(alt)}">`;
-  const size = s.device === 'phone' ? null : imageSize(s.after);
-  if (!size) return img;
+  const size = imageSize(s.after);
+  if (!size || (s.device === 'phone' && size.h / size.w > PHONE_SCREEN * 1.05)) return img;
   const pct = (n: number) => `${Math.round(n * 1000) / 10}%`;
   const f = frame && s.focus ? `<i class="focus" style="left: ${pct(s.focus.x)}; top: ${pct(s.focus.y)}; width: ${pct(s.focus.w)}; height: ${pct(s.focus.h)}"></i>` : '';
   // Zooming in (one press of →) scales the picture around the change's center, enough to fill most of the box.
   const zs = zoomScale(s);
   // Scaled around the change's center, then moved toward the middle, but never so far that an edge of the box shows empty.
   const shift = (c: number, k: number) => Math.min(c * (k - 1), Math.max((1 - c) * (1 - k), 0.5 - c));
+  // A change wider than the zoomed view (a whole row on a phone) is shown from its start, where it begins.
+  const cx = s.focus && zs ? s.focus.x + Math.min(s.focus.w, 0.9 / zs) / 2 : 0;
   const zoom =
     frame && s.focus && zs
-      ? ` --zx: ${pct(s.focus.x + s.focus.w / 2)}; --zy: ${pct(s.focus.y + s.focus.h / 2)}; --zs: ${zs}; --tx: ${pct(shift(s.focus.x + s.focus.w / 2, zs))}; --ty: ${pct(shift(s.focus.y + s.focus.h / 2, zs))};`
+      ? ` --zx: ${pct(cx)}; --zy: ${pct(s.focus.y + s.focus.h / 2)}; --zs: ${zs}; --tx: ${pct(shift(cx, zs))}; --ty: ${pct(shift(s.focus.y + s.focus.h / 2, zs))};`
       : '';
   return `<span class="shot" style="--r: ${Math.round((size.w / size.h) * 1000) / 1000};${zoom}">${img}${f}</span>`;
 }
 /** How far to zoom into the change: enough for it to fill most of the picture, at most 2.5 times. Null when it would hardly grow. */
 function zoomScale(s: Review['screens'][number]): number | null {
-  if (!s.focus || s.device === 'phone') return null;
-  const scale = Math.min(2.5, 0.85 / Math.max(s.focus.w, s.focus.h));
+  if (!s.focus) return null;
+  const size = imageSize(s.after);
+  if (s.device === 'phone' && (!size || size.h / size.w > PHONE_SCREEN * 1.05)) return null;
+  // A phone is small on the slide: a change across the whole row still zooms, to the row's start.
+  const width = s.device === 'phone' ? Math.min(s.focus.w, PHONE_ZOOM_WIDTH) : s.focus.w;
+  const scale = Math.min(2.5, 0.85 / Math.max(width, s.focus.h));
   return scale >= 1.4 ? Math.round(scale * 100) / 100 : null;
 }
+/** A phone screen's height over its width. */
+const PHONE_SCREEN = 844 / 390;
+/** On a phone, the share of the screen's width a zoom keeps in view at least. */
+const PHONE_ZOOM_WIDTH = 0.4;
 const picture = (uri: unknown) => (typeof uri === 'string' && IMAGE_DATA_URI.test(uri) ? uri : '');
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -217,11 +228,24 @@ export function renderDeck(review: Review, options: RenderOptions = {}): string 
 </section>`;
         }
         const reached = review.milestones.filter((m) => m.done).length;
+        const count = fill(t.roadmapReached, { n: reached, total: review.milestones.length });
+        const { moved, outside } = roadmapMoves(review);
+        // Themes outside the roadmap are named too, so a sprint that moved no milestone still shows its work.
+        const outsideLine = outside.length ? `\n  <p class="outside rise"${rise(moved.length + 2)}><span class="tag">${esc(t.roadmapOutside)}</span><span>${esc(outside.join(' · '))}</span></p>` : '';
+        if (moved.length) {
+          // What the sprint moved: each milestone with the themes that moved it, then how far the roadmap is.
+          return `<section class="slide" data-ref="roadmap">
+  ${head(esc(t.roadmapLabel), t.roadmapMoved)}
+  <ul class="moved">${moved.map((x, i) => `\n    <li class="rise ${x.milestone.done ? 'done' : ''}"${rise(i + 2)}><span>${esc(x.milestone.text)}</span><small>${esc(x.themes.join(' · '))}</small></li>`).join('')}
+  </ul>${outsideLine}
+  <p class="reached rise"${rise(moved.length + 3)}>${esc(count)}</p>
+</section>`;
+        }
         const next = p.milestones.findIndex((m) => !m.done);
         return `<section class="slide" data-ref="roadmap">
-  ${head(esc(t.roadmapLabel), fill(t.roadmapReached, { n: reached, total: review.milestones.length }))}
+  ${head(esc(t.roadmapLabel), count)}
   <ol class="timeline" style="--n: ${p.milestones.length}">${p.milestones.map((m, i) => `\n    <li class="rise ${m.done ? 'done' : i === next ? 'next' : ''}"${rise(i + 2)}>${i === next ? `<b>${esc(t.roadmapNext)}</b>` : ''}<span>${esc(m.text)}</span></li>`).join('')}
-  </ol>
+  </ol>${outsideLine}
 </section>`;
       }
       case 'usage': {
@@ -339,6 +363,8 @@ function script(t: Labels, lang: string): string {
   }).replace(/</g, '\\u003c');
   return `(function () {
   var L = ${L};
+  // The page as it was served, before this script changed anything: what HTML saves on a deck opened from disk.
+  var source = '<!doctype html>\\n' + document.documentElement.outerHTML;
   var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
   var progress = document.querySelector('.progress');
   var counter = document.querySelector('.counter');
@@ -428,13 +454,13 @@ function script(t: Labels, lang: string): string {
     });
   }
 
-  // Download: on a deck opened from a website, and on the deck you just made, opened from your disk;
-  // never inside another page. PDF prints every slide as a page; HTML is this file, which works offline
-  // (on disk you already have it); PowerPoint when a deck.pptx sits beside it.
+  // Download: on a deck opened from a website, and on one opened from disk so it can be passed on.
+  // Never inside another page. PDF prints every slide as a page; HTML is this deck as one file, which
+  // works offline; PowerPoint when a deck.pptx sits beside it.
   var downloadButton = document.querySelector('.download-button');
   var downloadMenu = document.querySelector('.download-menu');
-  var onDisk = location.protocol === 'file:';
-  if ((onDisk || /^https?:$/.test(location.protocol)) && window.parent === window && downloadButton && downloadMenu) {
+  var fromSite = /^https?:$/.test(location.protocol);
+  if ((fromSite || location.protocol === 'file:') && window.parent === window && downloadButton && downloadMenu) {
     var here = location.href.split('#')[0];
     var name = downloadMenu.getAttribute('data-file-name') || 'sprint-review';
     // Save as PDF suggests the page title as the file name: the descriptive name while printing.
@@ -442,6 +468,15 @@ function script(t: Labels, lang: string): string {
     window.addEventListener('beforeprint', function () { document.title = name; });
     window.addEventListener('afterprint', function () { document.title = shownTitle; });
     var htmlLink = downloadMenu.querySelector('[data-get="html"]');
+    // A file can't link to itself as a download, so a deck from disk saves the page as it was opened.
+    htmlLink.href = fromSite ? here : URL.createObjectURL(new Blob([source], { type: 'text/html' }));
+    htmlLink.setAttribute('download', name + '.html');
+    // Opened from disk, Edit has the corner: Download sits just left of it.
+    if (editButton && !editButton.hidden) {
+      var right = Math.round(window.innerWidth - editButton.getBoundingClientRect().left + 8) + 'px';
+      downloadButton.style.right = right;
+      downloadMenu.style.right = right;
+    }
     var pptxLink = downloadMenu.querySelector('[data-get="pptx"]');
     var pptxUrl = new URL('deck.pptx', here).href;
     var offerPptx = function () {
@@ -449,17 +484,9 @@ function script(t: Labels, lang: string): string {
       pptxLink.setAttribute('download', name + '.pptx');
       pptxLink.hidden = false;
     };
-    if (onDisk) {
-      // A file can't look for its neighbors, so the deck says itself whether a deck.pptx was written beside it.
-      htmlLink.hidden = true;
-      if (downloadMenu.hasAttribute('data-pptx-beside')) offerPptx();
-      // Edit sits in the corner; Download goes just left of it.
-      if (editButton && !editButton.hidden) downloadButton.style.right = 'calc(2vw + ' + (editButton.offsetWidth + 8) + 'px)';
-    } else {
-      htmlLink.href = here;
-      htmlLink.setAttribute('download', name + '.html');
-      fetch(pptxUrl, { method: 'HEAD' }).then(function (r) { if (r.ok) offerPptx(); }).catch(function () {});
-    }
+    // A file can't look for its neighbors, so a deck from disk says itself whether a deck.pptx was written beside it.
+    if (fromSite) fetch(pptxUrl, { method: 'HEAD' }).then(function (r) { if (r.ok) offerPptx(); }).catch(function () {});
+    else if (downloadMenu.hasAttribute('data-pptx-beside')) offerPptx();
     var setOpen = function (open) { downloadMenu.hidden = !open; downloadButton.setAttribute('aria-expanded', String(open)); };
     downloadButton.hidden = false;
     downloadButton.setAttribute('aria-expanded', 'false');

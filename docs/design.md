@@ -22,7 +22,7 @@ The deck follows rules from presentation research: Apple's keynotes and Human In
 ## The story
 
 1. **Cover**: the product's name, "Sprint review" and the period (the date isn't repeated in the title), the sprint goal when `goal` is set, and the sprint's strongest screenshot running off the right edge.
-2. **The sprint headline**: the one change that matters most to a user, in at most ten plain words (never two things joined with "and", never how it works), and a row with the theme names. A sprint goal is set before the sprint and can't be read from git, so the headline describes what was done.
+2. **The sprint headline**: what the sprint as a whole changed for a user, in at most ten plain words (never one commit standing in for a sprint of several themes, never a list of the themes, never how it works), and a row with the theme names. A sprint goal is set before the sprint and can't be read from git, so the headline describes what was done.
 3. **Last sprint**: what the previous review showed as next on the roadmap, and whether it is done now. Only when there is a previous review in the output folder and a roadmap; the audience checks promises before hearing new ones (GitLab publishes its kickoff and retrospective as a pair for the same reason).
 4. **You asked**: requests from `FEEDBACK.md` that this sprint answered, each with what was done, backed by a commit.
 5. **Theme slides**: the biggest themes, one slide each. `deck.density` sets how many: 2, 3 or 4.

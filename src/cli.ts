@@ -16,6 +16,8 @@ import { capture, CaptureError } from './screens/capture.ts';
 import { postToSlack } from './surfaces/slack.ts';
 import { PptxError } from './deck/pptx.ts';
 import { withWebsiteBrand } from './brand/website.ts';
+import { askSetup, brandSummary, configText, guessName, guessWebsite, type SetupAnswers } from './surfaces/setup.ts';
+import { createInterface } from 'node:readline/promises';
 import { costLine, dollars, priceOf, recordRun } from './ai/costs.ts';
 import { fitLog, writerSystem } from './ai/prompt.ts';
 import { ICONS } from './deck/icons-data.ts';
@@ -40,7 +42,7 @@ ${bold('Usage')}
 
 ${bold('Commands')}
   generate        Write the review for a sprint (default command)
-  init            Create sprint-review.config.yml in this folder
+  init            Create sprint-review.config.yml in this folder: asks for your product and website
   render <file>   Rebuild the deck from an edited review.json
   edit <file>     Edit a review.json in your browser, with the deck beside it
   capture         Take today's screenshots of the pages in the config
@@ -62,6 +64,13 @@ ${bold('Options for generate')}
   -c, --config      Path to the config file
   -q, --quiet       Only print the paths of what was written
   --json            Print the result as JSON
+
+${bold('Options for init')}
+  --website <url>      Your website, for the deck's logo, color and fonts
+  --description <text> What the product is and who uses it
+  --preset <audience>  business, executives, customers or team
+  --force              Replace an existing config
+  In a terminal, init asks for these; elsewhere it takes the options and guesses the rest.
 
 ${bold('Environment')}
   ANTHROPIC_API_KEY   Your Anthropic API key. Other providers (model.provider in the config):
@@ -93,6 +102,8 @@ async function main(argv: string[]): Promise<number> {
       json: { type: 'boolean' },
       force: { type: 'boolean' },
       preset: { type: 'string' },
+      website: { type: 'string' },
+      description: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
     },
@@ -103,7 +114,7 @@ async function main(argv: string[]): Promise<number> {
 
   switch (command) {
     case 'init':
-      return init(values.force ?? false, values.preset);
+      return init(values);
     case 'icons':
       return icons();
     case 'doctor':
@@ -177,6 +188,7 @@ async function run(flags: Flags): Promise<number> {
   if (files.pptx) out(`  ${bold('PowerPoint')} ${rel(files.pptx)}`);
   if (slack) out(`  ${bold('Slack')}    ${slack === 'posted' ? green('posted') : yellow(slack)}`);
   out(`  ${bold('Cost')}     ${costLine(result, ledger)} ${dim(rel(ledger.file))}`);
+  if (!config.brand.color && !config.brand.logo && !config.brand.from) out(`\n  ${yellow('!')} ${dim('The deck has the default look. Set brand.from to your website for your logo, color and fonts.')}`);
   // In a terminal the deck opens, with Download (PDF, PowerPoint) to share it and Edit, which opens the
   // editor that keeps running here: click a text to change it, saving rebuilds the deck.
   if (process.stdout.isTTY && !process.env.CI && !flags['no-edit']) {
@@ -306,18 +318,46 @@ function icons(): number {
   return 0;
 }
 
-function init(force: boolean, preset: string | undefined): number {
+async function init(flags: { force?: boolean; preset?: string; website?: string; description?: string }): Promise<number> {
   const file = resolve('sprint-review.config.yml');
-  if (existsSync(file) && !force) {
+  if (existsSync(file) && !flags.force) {
     err(`${basename(file)} already exists. Use --force to replace it.`);
     return 1;
   }
   const template = readFileSync(fileURLToPath(new URL('../assets/config.template.yml', import.meta.url)), 'utf8');
-  const name = guessName();
-  const audience = preset && ['business', 'executives', 'customers', 'team'].includes(preset) ? preset : 'business';
-  writeFileSync(file, template.replace('{{name}}', name).replace('{{audience}}', audience));
-  out(`${green('✓')} Created ${basename(file)}\n`);
-  out(`Next:\n  1. Fill in the product description and audience\n  2. export ANTHROPIC_API_KEY=...\n  3. ${bold('npx @guuskeunen/sprint-review --dry-run')} to see what it will read\n  4. ${bold('npx @guuskeunen/sprint-review')} to write the review`);
+  const start: SetupAnswers = {
+    name: guessName(process.cwd()),
+    description: flags.description ?? '',
+    website: flags.website ?? guessWebsite(process.cwd()),
+    audience: flags.preset ?? 'business',
+  };
+  let answers = start;
+  if (process.stdin.isTTY && process.stdout.isTTY && !process.env.CI) {
+    out(`${bold('Set up sprint-review')} ${dim('Enter keeps the value in brackets.')}\n`);
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    try {
+      answers = await askSetup((q, d) => rl.question(`${q}${d ? dim(` [${d}]`) : ''}: `).then((a) => a || d), start, out);
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') throw e;
+      err('Setup stopped: nothing was written.');
+      return 1;
+    } finally {
+      rl.close();
+    }
+  } else if (start.website) {
+    const found = await brandSummary(start.website);
+    out(found ? `Found on ${start.website}: ${found}` : `${yellow('!')} Could not read a brand from ${start.website}; check brand.from in the config.`);
+  }
+  writeFileSync(file, configText(template, answers));
+  out(`\n${green('✓')} Created ${basename(file)}\n`);
+  const steps = [
+    !answers.description && 'Fill in the product description',
+    !answers.website && 'Set brand.from to your website, for your logo, color and fonts',
+    'export ANTHROPIC_API_KEY=...',
+    `${bold('npx @guuskeunen/sprint-review doctor')} to check the setup`,
+    `${bold('npx @guuskeunen/sprint-review')} to write the review`,
+  ].filter(Boolean);
+  out(`Next:\n${steps.map((x, i) => `  ${i + 1}. ${x}`).join('\n')}`);
   return 0;
 }
 
@@ -328,15 +368,7 @@ function findConfig(): string | null {
 /** Works without a config: sensible defaults, the product named after the folder or package.json. */
 function configOrDefaults(path: string | undefined): Config {
   if (path || findConfig()) return loadConfig(path ?? null);
-  return normalize({ product: { name: guessName() } }, process.cwd());
-}
-
-function guessName(): string {
-  try {
-    const p = JSON.parse(readFileSync('package.json', 'utf8')) as { name?: string };
-    if (p.name) return p.name.replace(/^@[^/]+\//, '');
-  } catch {}
-  return basename(process.cwd());
+  return normalize({ product: { name: guessName(process.cwd()) } }, process.cwd());
 }
 
 function rangeFrom(flags: Flags, config: Config): Range {

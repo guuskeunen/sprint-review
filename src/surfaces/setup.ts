@@ -1,0 +1,81 @@
+import { readFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
+import { brandFromWebsite, isWebsite } from '../brand/website.ts';
+
+/** What `init` asks, or takes from flags and guesses when there is no one to ask. */
+export interface SetupAnswers {
+  name: string;
+  description: string;
+  website: string | null;
+  audience: string;
+}
+
+/** Asks one question with a default; an empty answer keeps the default. */
+export type Ask = (question: string, fallback: string) => Promise<string>;
+
+export const AUDIENCE_CHOICES = ['business', 'executives', 'customers', 'team'];
+
+/** The product name from package.json, else the folder. */
+export function guessName(dir: string): string {
+  return packageJson(dir)?.name?.replace(/^@[^/]+\//, '') || basename(dir);
+}
+
+/** The product's website from package.json's homepage, unless that is only its repository or npm page. */
+export function guessWebsite(dir: string): string | null {
+  const home = packageJson(dir)?.homepage ?? '';
+  if (!isWebsite(home) || /^https?:\/\/(www\.)?(github\.com|gitlab\.com|bitbucket\.org|npmjs\.com)\//i.test(home)) return null;
+  return home;
+}
+
+/**
+ * Walks through the setup: product, description, website and audience. A website is read right
+ * away, so you see the color, logo and fonts the deck will get before the first review.
+ */
+export async function askSetup(ask: Ask, start: SetupAnswers, say: (line: string) => void, fetchImpl: typeof fetch = fetch): Promise<SetupAnswers> {
+  const name = (await ask('Product name', start.name)).trim() || start.name;
+  const description = (await ask('What it is and who uses it, in a sentence (the AI explains changes with it)', start.description)).trim();
+  let website: string | null = null;
+  for (let tries = 0; tries < 3; tries++) {
+    const answer = (await ask('Your website, for the logo, color and fonts of the deck (- to skip)', start.website ?? '')).trim();
+    if (!answer || answer === '-') break;
+    const url = /^https?:\/\//i.test(answer) ? answer : `https://${answer}`;
+    const found = await brandSummary(url, fetchImpl);
+    if (found) {
+      say(`  Found on ${url}: ${found}`);
+      website = url;
+      break;
+    }
+    say(`  Could not read a brand from ${url}. Try another address, or - to skip and set brand.color and brand.logo yourself.`);
+  }
+  const audience = (await ask(`Who watches the review: ${AUDIENCE_CHOICES.join(', ')}, or your own words`, start.audience)).trim() || start.audience;
+  return { name, description, website, audience };
+}
+
+/** What a website gives the deck, in a few words: "color #6965db, logo, font Assistant". Null when it gives nothing. */
+export async function brandSummary(url: string, fetchImpl: typeof fetch = fetch): Promise<string | null> {
+  try {
+    const site = await brandFromWebsite(url, fetchImpl);
+    const fonts = [...new Set([site.fonts.heading, site.fonts.body].filter(Boolean))];
+    const parts = [site.color && `color ${site.color}`, site.logo && 'logo', fonts.length && `font${fonts.length > 1 ? 's' : ''} ${fonts.join(', ')}`].filter(Boolean);
+    return parts.length ? parts.join(', ') : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The config file: the template with the answers filled in. */
+export function configText(template: string, a: SetupAnswers): string {
+  return template
+    .replace('{{name}}', JSON.stringify(a.name))
+    .replace('{{description}}', JSON.stringify(a.description))
+    .replace('{{audience}}', AUDIENCE_CHOICES.includes(a.audience) ? a.audience : JSON.stringify(a.audience))
+    .replace('{{website}}', a.website ? `from: ${a.website}` : '# from: https://www.example.com      # your website');
+}
+
+function packageJson(dir: string): { name?: string; homepage?: string } | null {
+  try {
+    return JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { name?: string; homepage?: string };
+  } catch {
+    return null;
+  }
+}

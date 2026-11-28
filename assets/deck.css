@@ -139,8 +139,9 @@
   .card p { font-size: var(--fs-small); }
 
   /* The work behind the scenes: a compact list, a label for the kind of work in front of each line */
-  .hood-list { list-style: none; padding: 0; display: grid; gap: 0; font-size: var(--fs-body); max-width: 52ch; }
-  .hood-list li { display: grid; grid-template-columns: calc(var(--fs-small) * 10) minmax(0, 1fr); gap: 1.4vw; align-items: baseline; padding: 1.6vh 0; border-top: 1px solid var(--line); color: var(--ink); }
+  /* The label column is as wide as the longest label, the same on every row (subgrid). */
+  .hood-list { list-style: none; padding: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0 1.4vw; font-size: var(--fs-body); max-width: 64ch; }
+  .hood-list li { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; gap: 0 1.4vw; align-items: baseline; padding: 1.6vh 0; border-top: 1px solid var(--line); color: var(--ink); }
   .hood-list li:first-child { border-top: 0; }
   /* You asked, we did: the request in quotes, what was done below it */
   .answered { list-style: none; padding: 0; display: grid; gap: 3.4vh; max-width: 60ch; }
@@ -171,6 +172,9 @@
   figure.after figcaption { color: var(--good); }
   .compare.phone { grid-template-columns: auto auto; justify-content: start; gap: 6vw; }
   .compare.phone figure img { width: auto; height: 50vh; aspect-ratio: 390 / 844; border: .4rem solid var(--ink); border-radius: 1.8rem; }
+  /* A phone shows one screen around the change, in the phone's frame. */
+  .compare.phone .shot { width: min(100%, calc(50vh * var(--r))); border: .4rem solid var(--ink); border-radius: 1.8rem; }
+  .compare.phone .shot img { width: 100%; height: 100%; aspect-ratio: auto; border: 0; border-radius: 0; }
   /* The change on the after picture: a frame in the accent, the rest dimmed, once the picture is in. */
   .shot { position: relative; display: block; overflow: hidden; width: min(100%, calc(52vh * var(--r))); aspect-ratio: var(--r); border-radius: 10px; border: 1px solid var(--line); box-shadow: 0 24px 48px -24px rgb(15 23 42 / .35); }
   .compare .shot img { width: 100%; height: 100%; max-height: none; aspect-ratio: auto; border: 0; border-radius: 0; box-shadow: none; }
@@ -205,14 +209,22 @@
   .trend circle { fill: var(--accent); }
 
   /* Roadmap: a line through the milestones, done ones filled, the next one marked */
-  .timeline { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 2vw; position: relative; padding-top: 5vh; }
-  .timeline::before { content: ""; position: absolute; top: calc(5vh - 2.4vh + 11px); left: 0; right: 0; height: 2px; background: var(--line); }
+  .timeline { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 2vw; position: relative; padding-top: calc(22px + 1.6rem); }
+  .timeline::before { content: ""; position: absolute; top: 10px; left: 0; right: 0; height: 2px; background: var(--line); }
   .timeline li { position: relative; display: grid; gap: .8vh; align-content: start; font-size: var(--fs-small); color: var(--ink-faint); }
-  .timeline li::before { content: ""; position: absolute; top: -2.4vh; left: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--surface); border: 2px solid var(--line); transform: translateY(-50%); }
+  .timeline li::before { content: ""; position: absolute; top: calc(-22px - 1.6rem); left: 0; width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%; background: var(--surface); border: 2px solid var(--line); }
   .timeline li.done { color: var(--ink); }
   .timeline li.done::before { border-color: var(--good); background: var(--good) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 62% no-repeat; }
   .timeline li.next { color: var(--ink); }
   .timeline li.next::before { border-color: var(--accent); box-shadow: 0 0 0 6px var(--accent-soft); }
+  /* What the sprint moved: a milestone per row, a dot for reached or open, the themes that moved it beneath. */
+  .moved { list-style: none; padding: 0; margin: 0; display: grid; gap: 2.6vh; max-width: 60ch; }
+  .moved li { position: relative; display: grid; gap: .5vh; padding-left: calc(22px + 1.1rem); font-size: var(--fs-body); color: var(--ink); }
+  .moved li::before { content: ""; position: absolute; left: 0; top: .2em; width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); box-shadow: 0 0 0 6px var(--accent-soft); }
+  .moved li.done::before { border-color: var(--good); box-shadow: none; background: var(--good) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 62% no-repeat; }
+  .moved small { font-size: var(--fs-small); color: var(--ink-faint); }
+  .outside { display: flex; flex-wrap: wrap; gap: .4em 1.2em; align-items: baseline; margin: 4vh 0 0; font-size: var(--fs-small); color: var(--ink-faint); max-width: 70ch; }
+  .reached { margin: 2vh 0 0; font-size: var(--fs-small); color: var(--ink-faint); }
   .timeline b { font-size: var(--fs-small); text-transform: uppercase; letter-spacing: .12em; color: var(--accent); }
   .slide.active .timeline li.rise::before { animation: pop .3s cubic-bezier(.3, 1.4, .5, 1) both; animation-delay: calc(var(--i, 0) * 60ms + 150ms); }
   @media (prefers-reduced-motion: reduce) { .slide.active .timeline li.rise::before { animation: none; } }
@@ -267,9 +279,10 @@
     .compare, .cards, .cards.two { grid-template-columns: 1fr; max-width: none; }
     .compare.phone { grid-template-columns: 1fr 1fr; gap: 4vw; }
     .compare.phone figure img { width: 100%; height: auto; }
+    .compare.phone .shot { width: 100%; }
     .timeline { grid-template-columns: 1fr; padding-top: 0; padding-left: 2.4rem; }
     .timeline::before { top: 0; bottom: 0; left: 10px; right: auto; width: 2px; height: auto; }
-    .timeline li::before { top: .7em; left: -2.4rem; }
+    .timeline li::before { top: .15em; left: -2.4rem; }
     .hood-list li, .promises li { grid-template-columns: 1fr; gap: .3em; }
     .stages { grid-template-columns: 1fr; max-width: none; }
   }

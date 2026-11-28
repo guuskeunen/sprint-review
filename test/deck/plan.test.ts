@@ -106,6 +106,37 @@ test('a small change gets a zoom step on its before and after slide; a wide one 
   assert.doesNotMatch(html, /data-ref="screen-1" data-steps/);
 });
 
+/** The start of a PNG of this size: enough for the deck to read its shape. */
+function pngOfSize(w: number, h: number): string {
+  const b = Buffer.alloc(33);
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]).copy(b);
+  b.writeUInt32BE(w, 16);
+  b.writeUInt32BE(h, 20);
+  return `data:image/png;base64,${b.toString('base64')}`;
+}
+
+test('a phone screen gets the frame, and a change across its whole row still zooms, from where the row starts', async () => {
+  const { renderDeck } = await import('../../src/deck/render.ts');
+  const r = sample();
+  const phone = pngOfSize(390, 844);
+  r.screens[0] = { ...r.screens[0]!, device: 'phone', before: phone, after: phone, focus: { x: 0.05, y: 0.23, w: 0.78, h: 0.06 } };
+  const html = renderDeck(r);
+  assert.match(html, /data-ref="screen-0" data-steps="1"/);
+  assert.match(html, /<i class="focus" style="left: 5%; top: 23%; width: 78%; height: 6%">/);
+  // Zoomed 2.13 times around the row's first 42%, not its middle, so its start stays in view.
+  assert.match(html, /--zx: 26.1%; --zy: 26%; --zs: 2.13;/);
+});
+
+test('a full-page phone picture from an older review shows as before, without a frame or zoom', async () => {
+  const { renderDeck } = await import('../../src/deck/render.ts');
+  const r = sample();
+  const tall = pngOfSize(390, 2400);
+  r.screens[0] = { ...r.screens[0]!, device: 'phone', before: tall, after: tall, focus: { x: 0.05, y: 0.23, w: 0.78, h: 0.06 } };
+  const html = renderDeck(r);
+  assert.doesNotMatch(html, /data-ref="screen-0" data-steps/);
+  assert.doesNotMatch(html, /data-ref="screen-0"[\s\S]*?class="focus"[\s\S]*?data-ref="screen-1"/);
+});
+
 test('a very wide picture (a strip of cards) gets the width of the slide; a layout picked by hand wins', async () => {
   const sharp = (await import('sharp')).default;
   const strip = `data:image/png;base64,${(await sharp({ create: { width: 1200, height: 100, channels: 3, background: '#eee' } }).png().toBuffer()).toString('base64')}`;
@@ -147,4 +178,39 @@ test('a strip never goes on the cover, and keeps its points right under it', asy
   r.themes[1]!.screen = null;
   r.screens = [];
   assert.equal(coverPicture(r), null, 'only strips: the cover keeps its rings');
+});
+
+test('the roadmap slide shows what the sprint moved: each milestone with its themes, then the rest outside the roadmap', async () => {
+  const { renderDeck } = await import('../../src/deck/render.ts');
+  const { renderMarkdown } = await import('../../src/deck/markdown.ts');
+  const r = sample();
+  r.themes = r.themes.map((th, i) => ({ ...th, milestone: i === 0 || i === 3 ? 4 : i === 1 ? 2 : null }));
+  const html = renderDeck(r);
+  const slide = html.slice(html.indexOf('data-ref="roadmap"'));
+  assert.match(slide, /<h2[^>]*>What this sprint moved<\/h2>/);
+  assert.match(slide, /<li class="rise done"[^>]*><span>One customer page for online store, register and workshop<\/span><small>Repair ticket scanning<\/small><\/li>/);
+  assert.match(slide, /<li class="rise "[^>]*><span>Text message when the bike is ready<\/span><small>Customer profile · Duplicate customers<\/small><\/li>/);
+  assert.match(slide, /Outside the roadmap<\/span><span>Workshop planner · Look and feel<\/span>/);
+  assert.match(slide, /4 of 6 milestones reached/);
+  const text = renderMarkdown(r);
+  assert.match(text, /What this sprint moved:\n\n- One customer page for online store, register and workshop: Repair ticket scanning\n- Text message when the bike is ready: Customer profile, Duplicate customers/);
+  assert.match(text, /Outside the roadmap: Workshop planner, Look and feel/);
+});
+
+test('a sprint that moved no milestone keeps the timeline, and names its work outside the roadmap', async () => {
+  const { renderDeck } = await import('../../src/deck/render.ts');
+  const r = sample();
+  r.themes = r.themes.map((th) => ({ ...th, milestone: null }));
+  const html = renderDeck(r);
+  const slide = html.slice(html.indexOf('data-ref="roadmap"'));
+  assert.match(slide, /<ol class="timeline"/);
+  assert.match(slide, /Outside the roadmap<\/span><span>Customer profile · Repair ticket scanning/);
+});
+
+test('an older review without milestones on its themes shows the roadmap as before', async () => {
+  const { renderDeck } = await import('../../src/deck/render.ts');
+  const html = renderDeck(sample());
+  const slide = html.slice(html.indexOf('data-ref="roadmap"'));
+  assert.match(slide, /<ol class="timeline"/);
+  assert.doesNotMatch(slide.slice(0, slide.indexOf('</section>')), /Outside the roadmap/);
 });

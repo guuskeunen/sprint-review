@@ -89,7 +89,7 @@ test('the PDF download opens the print dialog with every slide as a page', async
   }
 });
 
-test('the deck opened from your own disk offers Download beside Edit: PDF, and PowerPoint when one was written', async (t) => {
+test('the deck opened from your own disk offers Download beside Edit: PDF, a copy of itself, and PowerPoint when one was written', async (t) => {
   const browser = await chrome();
   if (!browser) return t.skip('no Chrome');
   try {
@@ -106,9 +106,17 @@ test('the deck opened from your own disk offers Download beside Edit: PDF, and P
       assert.ok(download!.x + download!.width <= edit!.x, 'Download sits left of Edit, not on top of it');
       await page.click('.download-button');
       assert.equal(await page.evaluate(visible('.download-menu [data-get="pdf"]')), true);
-      assert.equal(await page.evaluate(visible('.download-menu [data-get="html"]')), false, 'the open file is the HTML already');
       assert.equal(await page.evaluate(visible('.download-menu [data-get="pptx"]')), pptxBeside);
       if (pptxBeside) assert.equal(await page.locator('.download-menu [data-get="pptx"]').getAttribute('href'), pathToFileURL(join(dir, 'deck.pptx')).href);
+      const html = page.locator('.download-menu [data-get="html"]');
+      const href = (await html.getAttribute('href')) ?? '';
+      assert.match(href, /^blob:/);
+      assert.match((await html.getAttribute('download')) ?? '', /\.html$/);
+      // The copy is the deck as it was opened: Edit and Download still hidden, as in the file.
+      const saved = await page.evaluate(async (url) => (await fetch(url)).text(), href);
+      assert.match(saved, /^<!doctype html>/);
+      assert.match(saved, /<button class="download-button"[^>]*hidden/);
+      assert.match(saved, /<button class="edit-button"[^>]*hidden/);
       await page.close();
     }
   } finally {

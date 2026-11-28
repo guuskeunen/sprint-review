@@ -20,3 +20,8 @@ test('brand font files go inside the deck, with their weight from the file name'
   assert.match(html, /@font-face \{ font-family: "Inter"; font-weight: 700; font-style: italic; font-display: block; src: url\(data:font\/woff2;base64,/);
   assert.equal(fontFaceCss([{ family: 'X"}body{', weight: 400, style: 'normal', data: 'https://evil.test/f.woff2' }]), '', 'only font data URIs');
 });
+
+test('a variable font file covers its range of weights in one face', () => {
+  const css = fontFaceCss([{ family: 'Inter', weight: 300, maxWeight: 800, style: 'normal', data: 'data:font/woff2;base64,AAAA' }]);
+  assert.match(css, /font-weight: 300 800;/);
+});

@@ -4,7 +4,7 @@ import sharp from 'sharp';
 // Types only: erased from the build, so pptxgenjs stays an optional peer.
 type PptxClass = (typeof import('pptxgenjs'))['default'];
 type Slide = ReturnType<InstanceType<PptxClass>['addSlide']>;
-import { coverName, coverPicture, numbers, planDeck } from './plan.ts';
+import { coverName, coverPicture, numbers, planDeck, roadmapMoves } from './plan.ts';
 import type { DeckConfig } from '../config.ts';
 import { readableOn } from './colors.ts';
 import { imageSize } from './images.ts';
@@ -184,7 +184,8 @@ export async function renderPptx(review: Review, options: PptxOptions = {}): Pro
           // The change, framed on the after picture where it falls inside what is shown.
           const f = side === 'after' ? sc.focus : undefined;
           const shown = 'sizing' in pic && pic.sizing ? pic.sizing.h : pic.h;
-          if (f && sc.device !== 'phone' && (f.y + f.h) * pic.h <= shown) {
+          // A phone picture is shown whole, so the frame lands on the change there too.
+          if (f && (f.y + f.h) * pic.h <= shown) {
             s.addShape('roundRect', { x: pic.x + f.x * pic.w, y: pic.y + f.y * pic.h, w: f.w * pic.w, h: f.h * pic.h, fill: { type: 'none' }, line: { color: pal.accent, width: 2.25 }, rectRadius: 0.06 });
           }
         }
@@ -194,10 +195,13 @@ export async function renderPptx(review: Review, options: PptxOptions = {}): Pro
         const s = newSlide();
         head(s, t.hoodLabel, t.hoodTitle);
         const rowH = Math.min(0.85, BODY_H / review.underTheHood.length);
+        const kindOf = (x: (typeof review.underTheHood)[number]) => (t[`kind_${x.kind}` as keyof Labels] ?? x.kind).toUpperCase();
+        // The label column is as wide as the longest label (about 0.13 inch a letter at this size and spacing).
+        const labelW = Math.min(3.2, Math.max(1.9, Math.max(...review.underTheHood.map((x) => kindOf(x).length)) * 0.13 + 0.2));
         review.underTheHood.forEach((x, i) => {
           const y = BODY_Y + i * rowH;
-          s.addText((t[`kind_${x.kind}` as keyof Labels] ?? x.kind).toUpperCase(), { x: X, y, w: 1.9, h: rowH, fontFace: body, fontSize: SIZE.small, bold: true, color: pal.faint, charSpacing: 2, valign: 'top', margin: 0 });
-          s.addText(x.text, { x: X + 2.0, y, w: Math.min(CW - 2.0, 8.5), h: rowH, fontFace: body, fontSize: SIZE.body, color: pal.ink, valign: 'top', margin: 0 });
+          s.addText(kindOf(x), { x: X, y, w: labelW, h: rowH, fontFace: body, fontSize: SIZE.small, bold: true, color: pal.faint, charSpacing: 2, valign: 'top', margin: 0 });
+          s.addText(x.text, { x: X + labelW + 0.1, y, w: Math.min(CW - labelW - 0.1, 8.5), h: rowH, fontFace: body, fontSize: SIZE.body, color: pal.ink, valign: 'top', margin: 0 });
         });
         break;
       }
@@ -218,7 +222,31 @@ export async function renderPptx(review: Review, options: PptxOptions = {}): Pro
           break;
         }
         const reached = review.milestones.filter((m) => m.done).length;
-        head(s, t.roadmapLabel, fill(t.roadmapReached, { n: reached, total: review.milestones.length }));
+        const count = fill(t.roadmapReached, { n: reached, total: review.milestones.length });
+        const { moved, outside } = roadmapMoves(review);
+        const small = { fontFace: body, fontSize: SIZE.small, color: pal.faint, margin: 0 } as const;
+        const outsideAt = (y: number) => {
+          if (!outside.length) return;
+          s.addText(t.roadmapOutside.toUpperCase(), { ...small, x: X, y, w: 2.6, h: 0.35, bold: true, charSpacing: 2 });
+          s.addText(outside.join(' · '), { ...small, x: X + 2.7, y, w: CW - 2.7, h: 0.35 });
+        };
+        if (moved.length) {
+          // What the sprint moved: each milestone with the themes that moved it, then the rest and the count.
+          head(s, t.roadmapLabel, t.roadmapMoved);
+          const rowH = Math.min(0.95, (BODY_H - 1.1) / moved.length);
+          moved.forEach((x, i) => {
+            const y = BODY_Y + i * rowH;
+            s.addShape('ellipse', { x: X, y: y + 0.07, w: 0.22, h: 0.22, fill: { color: x.milestone.done ? pal.accent : pal.bg }, line: { color: pal.accent, width: 2 } });
+            s.addText(x.milestone.text, { x: X + 0.45, y, w: CW - 0.45, h: 0.38, fontFace: body, fontSize: SIZE.body, color: pal.ink, margin: 0 });
+            s.addText(x.themes.join(' · '), { ...small, x: X + 0.45, y: y + 0.4, w: CW - 0.45, h: 0.3 });
+          });
+          const after = BODY_Y + moved.length * rowH + 0.25;
+          outsideAt(after);
+          s.addText(count, { ...small, x: X, y: after + (outside.length ? 0.55 : 0), w: CW, h: 0.35 });
+          break;
+        }
+        head(s, t.roadmapLabel, count);
+        outsideAt(BODY_Y + 2.9);
         const n = p.milestones.length;
         const w = CW / n;
         const next = p.milestones.findIndex((m) => !m.done);
