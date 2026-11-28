@@ -42,7 +42,7 @@ export async function doctorChecks(config: Config, cwd = process.cwd(), env = pr
       ? `screenshots.check is on: ${config.model.name} looks at the pictures, so ${where}${isLocal(config.model.provider) ? '' : '. Set screenshots.check: false to keep them here'}`
       : `screenshots.check is off: the model chooses pictures by name only. Set it to true to let it look (${where})`);
   }
-  if (config.output.pptx) {
+  if (config.output.pptx === true) {
     let pptx = false;
     try {
       await import('pptxgenjs' as string);

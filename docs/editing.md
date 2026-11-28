@@ -8,17 +8,19 @@ The deck is a draft, but it's written to be presented as it is. Read it through 
 
 ### In the editor
 
-Making a review in a terminal opens it in the editor right away. Later, or for an older review:
+Making a review in a terminal opens the deck in your browser right away, with **Download** to share it as a PDF or PowerPoint and **Edit** to change it. The editor keeps running in the terminal for that button until Ctrl+C. Later, or for an older review:
 
 ```bash
 npx @guuskeunen/sprint-review edit sprint-reviews/2026-11-16/review.json
 ```
 
-`--no-edit` skips the editor; it never opens in CI or without a terminal. The editor opens a local editor in your browser: the content on the left, the live deck on the right. Every change shows in the deck as you type, before you save. Click into a theme and the preview jumps to its slide. Word counts show the same limits the checks use. **Save and rebuild** (or Ctrl/⌘ + S) writes `review.json` and rebuilds `deck.html` next to it (and `deck.pptx` when `output.pptx` is on). Ctrl+C in the terminal stops the editor.
+`--no-edit` opens nothing and starts no editor; neither happens in CI or without a terminal. The editor is a local page in your browser: the content on the left, the live deck on the right. Every change shows in the deck as you type, before you save. Click into a theme and the preview jumps to its slide. Word counts show the same limits the checks use. **Save and rebuild** (or Ctrl/⌘ + S) writes `review.json` and rebuilds `deck.html` next to it (and `deck.pptx`, see [PowerPoint](#powerpoint)). Ctrl+C in the terminal stops the editor.
 
 **Open live view** shows the deck on its own in a new window, for a second screen or a call: it follows every edit as you type and the slide you're working on.
 
-**From the deck:** a deck opened from your disk has an **Edit** button in the top right corner. It opens the editor when it's running; when it isn't, it shows the command that starts it for this deck, ready to copy. Published and shared decks don't show the button; they show **Download** in its place, with a PDF (every slide a page, through the print dialog), the deck as one HTML file that works offline, and the PowerPoint when a published `deck.pptx` sits next to the deck. A deck opened from your disk shows **Download** next to Edit, with the PDF and a copy of the deck to pass on.
+**From the deck:** a deck opened from your disk has an **Edit** button in the top right corner. It opens the editor when it's running; when it isn't, it shows the command that starts it for this deck, ready to copy. Next to it, **Download** gives a PDF (every slide a page, through the print dialog), a copy of the deck to pass on, and the PowerPoint when one was written with the deck (by default, when `pptxgenjs` is installed). Published and shared decks don't show Edit; they show **Download** in its place, with the PDF, the deck as one HTML file that works offline, and the PowerPoint when a published `deck.pptx` sits next to the deck.
+
+**Downloading from the editor:** **Download** in the editor's top bar gives a PDF, a PowerPoint and the deck as one HTML file. It saves your edits first, so you get what you see. Every download is named after the product, the review and its dates, such as `excalidraw-sprint-review-2026-11-09-to-2026-11-27.pdf`, so it still says what it is in a colleague's inbox. The PowerPoint is made on the spot, also when the review was written without `--pptx` (it needs `pptxgenjs`, see [PowerPoint](#powerpoint)).
 
 The editor only listens on `127.0.0.1`, and only the page it opened can talk to it. `--port` picks another port (default 4321).
 
@@ -76,7 +78,7 @@ npx @guuskeunen/sprint-review render sprint-reviews/2026-11-16/review.json
 
 ## PowerPoint
 
-Some teams present from PowerPoint or Keynote, or want to add a slide by hand. Add `--pptx` (or set `output.pptx: true`) and `deck.pptx` is written next to the deck: the same slides, editable, with the speaker notes in the notes pane. It needs `pptxgenjs` (`npm i -D pptxgenjs`). `render` and the editor rebuild it too when `output.pptx` is on.
+Some teams present from PowerPoint or Keynote, or want to add a slide by hand. When `pptxgenjs` is installed (`npm i -D pptxgenjs`), `deck.pptx` is written next to the deck with every review: the same slides, editable, with the speaker notes in the notes pane. That's `output.pptx: auto`, the default; `false` turns it off, `true` makes a missing `pptxgenjs` an error, and `--pptx` asks for it for one run. `render` and the editor rebuild it too.
 
 `npm audit` may then report `image-size`: `pptxgenjs` lists it as a dependency but never calls it, so the advisory doesn't reach sprint-review, and only a `pptxgenjs` release can remove it. To clear the report, add this to your `package.json`:
 

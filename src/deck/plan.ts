@@ -100,6 +100,15 @@ export function coverName(review: Review): string {
   return review.organization || (review.product && review.product !== UNNAMED_PRODUCT ? review.product : '');
 }
 
+/**
+ * The name a downloaded deck gets, so it still says what it is in a colleague's inbox or Downloads
+ * folder: "excalidraw-sprint-review-2026-11-09-to-2026-11-27", without an extension.
+ */
+export function fileName(review: Review): string {
+  const slug = (s: string) => s.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return [coverName(review), review.title, `${review.from}-to-${review.until}`].map(slug).filter(Boolean).join('-') || 'sprint-review';
+}
+
 export function coverPicture(review: Review): string | null {
   const shots = [...review.themes.flatMap((th) => (th.screen?.device === 'desktop' ? [th.screen.image] : [])), ...review.screens.filter((x) => x.device === 'desktop').map((x) => x.after)];
   return shots.find((image) => !isWide(image)) ?? null;

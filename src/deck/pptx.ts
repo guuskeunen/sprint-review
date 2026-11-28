@@ -47,12 +47,8 @@ const PALETTES = {
  * HTML deck (no motion), but every word and picture is there.
  */
 export async function renderPptx(review: Review, options: PptxOptions = {}): Promise<Buffer> {
-  let PptxGenJS: PptxClass;
-  try {
-    PptxGenJS = ((await import('pptxgenjs' as string)) as { default: PptxClass }).default;
-  } catch {
-    throw new PptxError('PowerPoint export needs pptxgenjs: npm install --save-dev pptxgenjs');
-  }
+  const PptxGenJS = await loadPptx();
+  if (!PptxGenJS) throw new PptxError('PowerPoint export needs pptxgenjs: npm install --save-dev pptxgenjs');
   const t = labelsFor(review.language, options.labels);
   const pal = { ...PALETTES[options.theme === 'dark' ? 'dark' : 'light'] };
   if (options.color && /^#[0-9a-fA-F]{6}$/.test(options.color)) pal.accent = readableOn(options.color, `#${pal.bg}`).slice(1).toUpperCase();
@@ -318,4 +314,17 @@ async function logoBox(dataUri: string, maxW: number, maxH: number): Promise<{ w
     if (width && height) ratio = width / height;
   } catch {}
   return ratio > maxW / maxH ? { w: maxW, h: maxW / ratio } : { w: maxH * ratio, h: maxH };
+}
+
+async function loadPptx(): Promise<PptxClass | null> {
+  try {
+    return ((await import('pptxgenjs' as string)) as { default: PptxClass }).default;
+  } catch {
+    return null;
+  }
+}
+
+/** Whether a PowerPoint can be made here: pptxgenjs is an optional peer. */
+export async function pptxAvailable(): Promise<boolean> {
+  return (await loadPptx()) !== null;
 }

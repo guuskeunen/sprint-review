@@ -109,7 +109,8 @@ export interface Config {
   usage: string | null;
   limits: { themes: number; themeScreens: number; changedScreens: number; commits: number };
   model: ModelConfig;
-  output: { dir: string; markdown: boolean; pptx: boolean };
+  /** pptx: auto writes deck.pptx whenever pptxgenjs is installed. */
+  output: { dir: string; markdown: boolean; pptx: boolean | 'auto' };
   deck: DeckConfig;
   /** Post the summary to Slack after generating. The webhook URL comes from SLACK_WEBHOOK_URL. */
   slack: boolean;
@@ -287,7 +288,7 @@ export function normalize(raw: unknown, root: string): Config {
     output: {
       dir: str(output.dir, 'output.dir') ?? 'sprint-reviews',
       markdown: output.markdown === undefined ? true : bool(output.markdown, 'output.markdown'),
-      pptx: output.pptx === undefined ? false : bool(output.pptx, 'output.pptx'),
+      pptx: output.pptx === undefined || output.pptx === 'auto' ? 'auto' : bool(output.pptx, 'output.pptx'),
     },
     deck: deckConfig(r.deck, preset),
     slack: r.slack === undefined ? false : bool(r.slack, 'slack'),

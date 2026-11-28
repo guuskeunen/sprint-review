@@ -77,3 +77,28 @@ test('validReview drops empty lines and refuses a broken review', () => {
   assert.ok(v.underTheHood.every((p) => p.text.trim()));
   assert.throws(() => validReview({ ...r, themes: [{ title: 1 }] }), /theme/);
 });
+
+test('the editor downloads the saved review as a PDF page, a PowerPoint and an HTML file, only with its token', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'edit-'));
+  const file = join(dir, 'review.json');
+  writeFileSync(file, JSON.stringify(sample()));
+  const editor = await startEditor(file, normalize({}, dir), 0);
+  try {
+    const page = await (await fetch(editor.url)).text();
+    assert.match(page, /id="download"/);
+    const token = encodeURIComponent(/"token":"([^"]+)"/.exec(page)![1]!);
+    for (const kind of ['pdf', 'pptx', 'html']) assert.equal((await fetch(`${editor.url}download/${kind}`)).status, 403, kind);
+    const { fileName } = await import('../../src/deck/plan.ts');
+    const pptx = await fetch(`${editor.url}download/pptx?token=${token}`);
+    assert.equal(pptx.status, 200);
+    assert.equal(pptx.headers.get('content-disposition'), `attachment; filename="${fileName(sample())}.pptx"`);
+    assert.equal(Buffer.from(await pptx.arrayBuffer()).subarray(0, 2).toString(), 'PK', 'a PowerPoint is a zip');
+    const html = await fetch(`${editor.url}download/html?token=${token}`);
+    assert.match(html.headers.get('content-disposition') ?? '', /attachment; filename=".*\.html"/);
+    assert.match(await html.text(), /<section class="slide/);
+    const pdf = await (await fetch(`${editor.url}download/pdf?token=${token}`)).text();
+    assert.match(pdf, /window\.print\(\)/);
+  } finally {
+    await editor.close();
+  }
+});
